@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   MEMBER = 'MEMBER'
@@ -26,6 +27,25 @@ export enum TaskStatus {
   ASSIGNED = 'ASSIGNED',
   COMPLETED = 'COMPLETED',
   VERIFIED = 'VERIFIED'
+}
+
+export enum SideQuestStatus {
+  PENDING = 'PENDING', // Waiting for user to see popup
+  ACTIVE = 'ACTIVE',   // User accepted
+  COMPLETED = 'COMPLETED',
+  REJECTED = 'REJECTED',
+  EXPIRED = 'EXPIRED'
+}
+
+export interface SideQuest {
+  id: string;
+  familyId: string;
+  assignedTo: string; // User ID
+  title: string;
+  description: string;
+  status: SideQuestStatus;
+  createdAt: number;
+  expiresAt: number;
 }
 
 export interface Task {

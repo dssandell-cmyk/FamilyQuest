@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Task, TaskStatus, UserRole, TaskProposal, Family } from '../types';
+import { User, Task, TaskStatus, UserRole, TaskProposal, Family, SideQuest, SideQuestStatus } from '../types';
 import { LEVEL_THRESHOLDS, MONSTERS } from '../constants';
 
 interface GameContextType {
@@ -7,6 +8,7 @@ interface GameContextType {
   familyUsers: User[]; // Users in current family
   tasks: Task[]; // Tasks for current family
   proposals: TaskProposal[]; // Proposals for current family
+  sideQuests: SideQuest[]; // Side quests for current family
   currentFamily: Family | null;
   currentUser: User | null;
   
@@ -30,6 +32,12 @@ interface GameContextType {
   addProposal: (title: string, description: string, points: number) => void;
   rejectProposal: (id: string) => void;
   approveProposal: (proposal: TaskProposal, overrides: Record<string, number>, finalPoints: number) => void;
+
+  // Side Quests
+  addSideQuest: (assignedTo: string, title: string, description: string, durationHours: number) => void;
+  respondToSideQuest: (questId: string, accepted: boolean) => void;
+  completeSideQuest: (questId: string) => void;
+  deleteSideQuest: (questId: string) => void;
 
   // Boss Logic
   isTaskLockedForUser: (task: Task, userId: string) => { locked: boolean; reason?: string; requiredPoints?: number };
@@ -63,6 +71,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [sideQuests, setSideQuests] = useState<SideQuest[]>(() => {
+    const saved = localStorage.getItem('fq_side_quests');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('fq_current_user');
     return saved ? JSON.parse(saved) : null;
@@ -77,6 +90,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (e.key === 'fq_families' && e.newValue) setFamilies(JSON.parse(e.newValue));
       if (e.key === 'fq_tasks' && e.newValue) setTasks(JSON.parse(e.newValue));
       if (e.key === 'fq_proposals' && e.newValue) setProposals(JSON.parse(e.newValue));
+      if (e.key === 'fq_side_quests' && e.newValue) setSideQuests(JSON.parse(e.newValue));
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
@@ -87,6 +101,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('fq_families', JSON.stringify(families)); }, [families]);
   useEffect(() => { localStorage.setItem('fq_tasks', JSON.stringify(tasks)); }, [tasks]);
   useEffect(() => { localStorage.setItem('fq_proposals', JSON.stringify(proposals)); }, [proposals]);
+  useEffect(() => { localStorage.setItem('fq_side_quests', JSON.stringify(sideQuests)); }, [sideQuests]);
   
   useEffect(() => {
     if (currentUser) {
@@ -126,6 +141,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const familyProposals = currentUser?.familyId
     ? proposals.filter(p => p.familyId === currentUser.familyId)
+    : [];
+
+  const familySideQuests = currentUser?.familyId
+    ? sideQuests.filter(sq => sq.familyId === currentUser.familyId)
     : [];
 
   // --- ACTIONS ---
@@ -210,11 +229,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('fq_families');
     localStorage.removeItem('fq_tasks');
     localStorage.removeItem('fq_proposals');
+    localStorage.removeItem('fq_side_quests');
     localStorage.removeItem('fq_current_user');
     setUsers([]);
     setFamilies([]);
     setTasks([]);
     setProposals([]);
+    setSideQuests([]);
     setCurrentUser(null);
     window.location.reload();
   };
@@ -337,12 +358,51 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     rejectProposal(proposal.id);
   };
 
+  // --- SIDE QUESTS ---
+  const addSideQuest = (assignedTo: string, title: string, description: string, durationHours: number) => {
+    if (!currentUser || !currentUser.familyId) return;
+    const newQuest: SideQuest = {
+      id: Date.now().toString(),
+      familyId: currentUser.familyId,
+      assignedTo,
+      title,
+      description,
+      status: SideQuestStatus.PENDING,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + (durationHours * 60 * 60 * 1000)
+    };
+    setSideQuests(prev => [newQuest, ...prev]);
+  };
+
+  const deleteSideQuest = (questId: string) => {
+    setSideQuests(prev => prev.filter(sq => sq.id !== questId));
+  };
+
+  const respondToSideQuest = (questId: string, accepted: boolean) => {
+    setSideQuests(prev => prev.map(sq => {
+      if (sq.id === questId) {
+        return { ...sq, status: accepted ? SideQuestStatus.ACTIVE : SideQuestStatus.REJECTED };
+      }
+      return sq;
+    }));
+  };
+
+  const completeSideQuest = (questId: string) => {
+    setSideQuests(prev => prev.map(sq => {
+      if (sq.id === questId) {
+        return { ...sq, status: SideQuestStatus.COMPLETED };
+      }
+      return sq;
+    }));
+  };
+
   return (
     <GameContext.Provider value={{ 
       users,
       familyUsers,
       tasks: familyTasks, 
       proposals: familyProposals,
+      sideQuests: familySideQuests,
       currentUser,
       currentFamily,
       login, 
@@ -359,6 +419,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       addProposal,
       rejectProposal,
       approveProposal,
+      addSideQuest,
+      respondToSideQuest,
+      completeSideQuest,
+      deleteSideQuest,
       isTaskLockedForUser,
       resetApp
     }}>

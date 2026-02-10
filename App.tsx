@@ -5,6 +5,7 @@ import { GameView } from './views/GameView';
 import { MarketView } from './views/MarketView';
 import { AdminView } from './views/AdminView';
 import { Button } from './components/Button';
+import { SideQuestModal } from './components/SideQuestModal';
 import { UserRole } from './types';
 import { Home, ScanLine, UserPlus, Users, ArrowRight, Trash2 } from 'lucide-react';
 
@@ -207,6 +208,7 @@ const MainApp: React.FC = () => {
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
+      <SideQuestModal />
       {activeTab === 'game' && <GameView />}
       {activeTab === 'market' && <MarketView onNavigate={setActiveTab} />}
       {activeTab === 'admin' && currentUser.role === UserRole.ADMIN && <AdminView />}

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { TaskStatus, UserRole, TaskProposal } from '../types';
+import { TaskStatus, UserRole, TaskProposal, SideQuestStatus } from '../types';
 import { TaskCard } from '../components/TaskCard';
-import { ShoppingBag, Plus, Lightbulb, ChevronUp, ChevronDown, X, Wand2, Coins, Clock, Users, Check, Trash2 } from 'lucide-react';
+import { ShoppingBag, Plus, Lightbulb, ChevronUp, ChevronDown, X, Wand2, Coins, Clock, Users, Check, Trash2, Gift, Sparkles } from 'lucide-react';
 import { Button } from '../components/Button';
 import { generateEpicTaskDescription } from '../services/geminiService';
 
@@ -11,7 +11,7 @@ interface MarketViewProps {
 }
 
 export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
-  const { tasks, claimTask, currentUser, isTaskLockedForUser, addProposal, addTask, familyUsers, proposals, rejectProposal } = useGame();
+  const { tasks, claimTask, currentUser, isTaskLockedForUser, addProposal, addTask, familyUsers, proposals, rejectProposal, sideQuests, completeSideQuest } = useGame();
   
   // Create Task State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -32,6 +32,11 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
 
   const openTasks = tasks.filter(t => t.status === TaskStatus.OPEN);
   const assignedTasks = tasks.filter(t => t.status === TaskStatus.ASSIGNED);
+  
+  // Active Side Quests for current user
+  const mySideQuests = sideQuests.filter(sq => 
+    sq.assignedTo === currentUser?.id && sq.status === SideQuestStatus.ACTIVE
+  );
 
   const handleProposalSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,6 +226,37 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
                 </form>
             </div>
         </div>
+      )}
+
+      {/* ACTIVE SIDE QUESTS (For User) */}
+      {mySideQuests.length > 0 && (
+          <div className="mb-6">
+              <h3 className="text-sm font-bold text-purple-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Gift size={16} /> Aktiva Side Quests
+              </h3>
+              <div className="space-y-3">
+                  {mySideQuests.map(sq => (
+                      <div key={sq.id} className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-2 opacity-10">
+                              <Sparkles size={40} className="text-purple-600" />
+                          </div>
+                          <div className="relative z-10">
+                            <h4 className="font-bold text-purple-900 text-lg mb-1">{sq.title}</h4>
+                            <p className="text-sm text-purple-700 mb-4">{sq.description}</p>
+                            <Button 
+                                onClick={() => completeSideQuest(sq.id)} 
+                                variant="success" 
+                                size="sm" 
+                                fullWidth
+                                className="shadow-none border border-green-200"
+                            >
+                                Markera som klar
+                            </Button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
       )}
 
       {/* ADMIN SECTION: INCOMING PROPOSALS */}
