@@ -22,10 +22,10 @@ export const AdminView: React.FC = () => {
     }
   };
 
-  const handleCreateSideQuest = (e: React.FormEvent) => {
+  const handleCreateSideQuest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (sqUser && sqTitle) {
-      addSideQuest(sqUser, sqTitle, sqDesc, sqDuration);
+      await addSideQuest(sqUser, sqTitle, sqDesc, sqDuration);
       setSqUser('');
       setSqTitle('');
       setSqDesc('');

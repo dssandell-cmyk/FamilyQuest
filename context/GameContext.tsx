@@ -1,43 +1,45 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, Task, TaskStatus, UserRole, TaskProposal, Family, SideQuest, SideQuestStatus } from '../types';
 import { LEVEL_THRESHOLDS, MONSTERS } from '../constants';
+import { api, setToken, ApiUser } from '../services/api';
 
 interface GameContextType {
-  users: User[]; // All users (filtered by family in UI usually, but accessible)
-  familyUsers: User[]; // Users in current family
-  tasks: Task[]; // Tasks for current family
-  proposals: TaskProposal[]; // Proposals for current family
-  sideQuests: SideQuest[]; // Side quests for current family
+  users: User[];
+  familyUsers: User[];
+  tasks: Task[];
+  proposals: TaskProposal[];
+  sideQuests: SideQuest[];
   currentFamily: Family | null;
   currentUser: User | null;
-  
+  loading: boolean;
+
   // Auth & Family
-  login: (name: string, password: string) => boolean;
-  register: (name: string, password: string) => void;
-  createFamily: (familyName: string) => void;
-  joinFamily: (code: string) => boolean;
+  login: (name: string, password: string) => Promise<boolean>;
+  register: (name: string, password: string) => Promise<void>;
+  createFamily: (familyName: string) => Promise<void>;
+  joinFamily: (code: string) => Promise<boolean>;
   logout: () => void;
-  updateUserRole: (userId: string, role: UserRole) => void;
-  resetApp: () => void; // New function to clear data
+  updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  resetApp: () => void;
 
   // Tasks
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status' | 'createdBy' | 'familyId'>) => void;
-  claimTask: (taskId: string) => void;
-  completeTask: (taskId: string) => void;
-  verifyTask: (taskId: string) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status' | 'createdBy' | 'familyId'>) => Promise<void>;
+  claimTask: (taskId: string) => Promise<void>;
+  completeTask: (taskId: string) => Promise<void>;
+  verifyTask: (taskId: string) => Promise<void>;
   getPotentialPoints: (task: Task, userId: string) => number;
-  
+
   // Proposals
-  addProposal: (title: string, description: string, points: number) => void;
-  rejectProposal: (id: string) => void;
-  approveProposal: (proposal: TaskProposal, overrides: Record<string, number>, finalPoints: number) => void;
+  addProposal: (title: string, description: string, points: number) => Promise<void>;
+  rejectProposal: (id: string) => Promise<void>;
+  approveProposal: (proposal: TaskProposal, overrides: Record<string, number>, finalPoints: number) => Promise<void>;
 
   // Side Quests
-  addSideQuest: (assignedTo: string, title: string, description: string, durationHours: number) => void;
-  respondToSideQuest: (questId: string, accepted: boolean) => void;
-  completeSideQuest: (questId: string) => void;
-  deleteSideQuest: (questId: string) => void;
+  addSideQuest: (assignedTo: string, title: string, description: string, durationHours: number) => Promise<void>;
+  respondToSideQuest: (questId: string, accepted: boolean) => Promise<void>;
+  completeSideQuest: (questId: string) => Promise<void>;
+  deleteSideQuest: (questId: string) => Promise<void>;
 
   // Boss Logic
   isTaskLockedForUser: (task: Task, userId: string) => { locked: boolean; reason?: string; requiredPoints?: number };
@@ -45,231 +47,195 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-// Helper to generate code
-const generateCode = () => {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-};
+function apiUserToUser(u: ApiUser): User {
+  return {
+    id: u.id,
+    name: u.name,
+    role: u.role as UserRole,
+    score: u.score,
+    avatar: u.avatar,
+    level: u.level,
+    familyId: u.familyId || undefined,
+  };
+}
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('fq_users');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [familyUsers, setFamilyUsers] = useState<User[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [proposals, setProposals] = useState<TaskProposal[]>([]);
+  const [sideQuests, setSideQuests] = useState<SideQuest[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentFamily, setCurrentFamily] = useState<Family | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [families, setFamilies] = useState<Family[]>(() => {
-    const saved = localStorage.getItem('fq_families');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Refresh all data from server
+  const refreshData = useCallback(async () => {
+    try {
+      const [familyData, taskList, proposalList, sideQuestList] = await Promise.all([
+        api.families.current(),
+        api.tasks.list(),
+        api.proposals.list(),
+        api.sideQuests.list(),
+      ]);
 
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem('fq_tasks');
-    return saved ? JSON.parse(saved) : [];
-  });
+      if (familyData.family) {
+        setCurrentFamily({
+          id: familyData.family.id,
+          name: familyData.family.name,
+          inviteCode: familyData.family.inviteCode,
+          members: familyData.members.map(m => m.id),
+        });
+        setFamilyUsers(familyData.members.map(apiUserToUser));
+      } else {
+        setCurrentFamily(null);
+        setFamilyUsers([]);
+      }
 
-  const [proposals, setProposals] = useState<TaskProposal[]>(() => {
-    const saved = localStorage.getItem('fq_proposals');
-    return saved ? JSON.parse(saved) : [];
-  });
+      setTasks(taskList.map(t => ({
+        ...t,
+        status: t.status as TaskStatus,
+        assigneeId: t.assigneeId || undefined,
+        userPointsOverride: t.userPointsOverride || {},
+      })));
 
-  const [sideQuests, setSideQuests] = useState<SideQuest[]>(() => {
-    const saved = localStorage.getItem('fq_side_quests');
-    return saved ? JSON.parse(saved) : [];
-  });
+      setProposals(proposalList as TaskProposal[]);
 
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('fq_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  // --- SYNC & PERSISTENCE ---
-
-  // 1. Listen for cross-tab changes (Storage Events)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'fq_users' && e.newValue) setUsers(JSON.parse(e.newValue));
-      if (e.key === 'fq_families' && e.newValue) setFamilies(JSON.parse(e.newValue));
-      if (e.key === 'fq_tasks' && e.newValue) setTasks(JSON.parse(e.newValue));
-      if (e.key === 'fq_proposals' && e.newValue) setProposals(JSON.parse(e.newValue));
-      if (e.key === 'fq_side_quests' && e.newValue) setSideQuests(JSON.parse(e.newValue));
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+      setSideQuests(sideQuestList.map(sq => ({
+        ...sq,
+        status: sq.status as SideQuestStatus,
+      })));
+    } catch (err) {
+      console.error('Failed to refresh data:', err);
+    }
   }, []);
 
-  // 2. Persist state to local storage when it changes in THIS tab
-  useEffect(() => { localStorage.setItem('fq_users', JSON.stringify(users)); }, [users]);
-  useEffect(() => { localStorage.setItem('fq_families', JSON.stringify(families)); }, [families]);
-  useEffect(() => { localStorage.setItem('fq_tasks', JSON.stringify(tasks)); }, [tasks]);
-  useEffect(() => { localStorage.setItem('fq_proposals', JSON.stringify(proposals)); }, [proposals]);
-  useEffect(() => { localStorage.setItem('fq_side_quests', JSON.stringify(sideQuests)); }, [sideQuests]);
-  
+  // On mount: check for saved token and restore session
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('fq_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('fq_current_user');
+    const token = localStorage.getItem('fq_token');
+    if (!token) {
+      setLoading(false);
+      return;
     }
-  }, [currentUser]);
 
-  // 3. CRITICAL: Keep currentUser in sync with the source of truth (users array)
+    api.auth.me()
+      .then(async (userData) => {
+        setCurrentUser(apiUserToUser(userData));
+        await refreshData();
+      })
+      .catch(() => {
+        setToken(null);
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll for updates every 10 seconds when logged in with a family
   useEffect(() => {
-    if (!currentUser) return;
-    
-    const freshUser = users.find(u => u.id === currentUser.id);
-    if (freshUser) {
-        // Update if role, score or other vital info changed
-        if (freshUser.role !== currentUser.role || freshUser.score !== currentUser.score) {
-            console.log("Syncing current user from DB...", freshUser.role);
-            setCurrentUser(freshUser);
-        }
-    }
-  }, [users, currentUser]); // Dependent on users array changing
-
-  // --- DERIVED STATE ---
-
-  const currentFamily = currentUser?.familyId 
-    ? families.find(f => f.id === currentUser.familyId) || null
-    : null;
-
-  const familyUsers = currentUser?.familyId
-    ? users.filter(u => u.familyId === currentUser.familyId)
-    : [];
-
-  const familyTasks = currentUser?.familyId
-    ? tasks.filter(t => t.familyId === currentUser.familyId)
-    : [];
-  
-  const familyProposals = currentUser?.familyId
-    ? proposals.filter(p => p.familyId === currentUser.familyId)
-    : [];
-
-  const familySideQuests = currentUser?.familyId
-    ? sideQuests.filter(sq => sq.familyId === currentUser.familyId)
-    : [];
+    if (!currentUser?.familyId) return;
+    const interval = setInterval(async () => {
+      try {
+        const userData = await api.auth.me();
+        setCurrentUser(apiUserToUser(userData));
+        await refreshData();
+      } catch {
+        // silently ignore polling errors
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [currentUser?.familyId, refreshData]);
 
   // --- ACTIONS ---
 
-  const login = (name: string, password: string): boolean => {
-    // Check state first (fresher), then storage
-    const user = users.find((u: User) => u.name.toLowerCase() === name.toLowerCase() && u.password === password);
-    
-    if (user) {
-      setCurrentUser(user);
+  const login = async (name: string, password: string): Promise<boolean> => {
+    try {
+      const { token, user } = await api.auth.login(name, password);
+      setToken(token);
+      setCurrentUser(apiUserToUser(user));
+      await refreshData();
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
-  const register = (name: string, password: string) => {
-    if (users.some(u => u.name.toLowerCase() === name.toLowerCase())) {
-        alert("Användarnamnet är upptaget");
-        return;
+  const register = async (name: string, password: string) => {
+    try {
+      const { token, user } = await api.auth.register(name, password);
+      setToken(token);
+      setCurrentUser(apiUserToUser(user));
+    } catch (err: any) {
+      alert(err.message || 'Registrering misslyckades');
     }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      name,
-      password,
-      role: UserRole.MEMBER, 
-      score: 0,
-      level: 1,
-      avatar: `https://picsum.photos/seed/${Date.now()}/100/100`
-    };
-    setUsers(prev => [...prev, newUser]);
-    setCurrentUser(newUser);
   };
 
-  const createFamily = (familyName: string) => {
-    if (!currentUser) return;
-    
-    const newFamily: Family = {
-      id: Date.now().toString(),
-      name: familyName,
-      inviteCode: generateCode(),
-      members: [currentUser.id]
-    };
-
-    setFamilies(prev => [...prev, newFamily]);
-    
-    const updatedUser = { ...currentUser, familyId: newFamily.id, role: UserRole.ADMIN };
-    // Update local state immediately
-    setCurrentUser(updatedUser);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+  const createFamily = async (familyName: string) => {
+    try {
+      const { family, user } = await api.families.create(familyName);
+      setCurrentUser(apiUserToUser(user));
+      setCurrentFamily({
+        id: family.id,
+        name: family.name,
+        inviteCode: family.inviteCode,
+        members: [user.id],
+      });
+      await refreshData();
+    } catch (err: any) {
+      alert(err.message || 'Kunde inte skapa familj');
+    }
   };
 
-  const joinFamily = (code: string): boolean => {
-    if (!currentUser) return false;
-    
-    const family = families.find(f => f.inviteCode === code);
-    if (family) {
-      const updatedUser = { ...currentUser, familyId: family.id, role: UserRole.MEMBER };
-      
-      // First member becomes admin automatically
-      if (family.members.length === 0) updatedUser.role = UserRole.ADMIN;
-
-      setCurrentUser(updatedUser);
-      setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-      
-      setFamilies(prev => prev.map(f => 
-        f.id === family.id 
-          ? { ...f, members: [...f.members, currentUser.id] }
-          : f
-      ));
+  const joinFamily = async (code: string): Promise<boolean> => {
+    try {
+      const { family, user } = await api.families.join(code);
+      setCurrentUser(apiUserToUser(user));
+      setCurrentFamily({
+        id: family.id,
+        name: family.name,
+        inviteCode: family.inviteCode,
+        members: [],
+      });
+      await refreshData();
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
+    setToken(null);
     setCurrentUser(null);
-  };
-
-  const resetApp = () => {
-    localStorage.removeItem('fq_users');
-    localStorage.removeItem('fq_families');
-    localStorage.removeItem('fq_tasks');
-    localStorage.removeItem('fq_proposals');
-    localStorage.removeItem('fq_side_quests');
-    localStorage.removeItem('fq_current_user');
-    setUsers([]);
-    setFamilies([]);
+    setCurrentFamily(null);
+    setFamilyUsers([]);
     setTasks([]);
     setProposals([]);
     setSideQuests([]);
-    setCurrentUser(null);
+  };
+
+  const resetApp = () => {
+    logout();
     window.location.reload();
   };
 
-  const updateUserRole = (userId: string, role: UserRole) => {
-    // Force immediate update
-    const updatedUsers = users.map(u => u.id === userId ? { ...u, role } : u);
-    setUsers(updatedUsers);
-    
-    // Explicitly update storage immediately to ensure cross-tab sync works instantly
-    localStorage.setItem('fq_users', JSON.stringify(updatedUsers));
+  const updateUserRole = async (userId: string, role: UserRole) => {
+    await api.families.updateUserRole(userId, role);
+    await refreshData();
   };
 
-  const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'status' | 'createdBy' | 'familyId'>) => {
-    if (!currentUser || !currentUser.familyId) return;
-    const newTask: Task = {
-      ...taskData,
-      id: Date.now().toString(),
-      familyId: currentUser.familyId,
-      createdAt: Date.now(),
-      status: TaskStatus.OPEN,
-      createdBy: currentUser.id,
-    };
-    setTasks(prev => [newTask, ...prev]);
+  const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'status' | 'createdBy' | 'familyId'>) => {
+    await api.tasks.create({
+      title: taskData.title,
+      description: taskData.description,
+      basePoints: taskData.basePoints,
+      userPointsOverride: taskData.userPointsOverride,
+      bookingDeadline: taskData.bookingDeadline,
+      completionDeadline: taskData.completionDeadline,
+      isBossTask: taskData.isBossTask,
+    });
+    await refreshData();
   };
 
-  const claimTask = (taskId: string) => {
-    if (!currentUser) return;
-    setTasks(prev => prev.map(t => {
-      if (t.id === taskId) {
-        return { ...t, status: TaskStatus.ASSIGNED, assigneeId: currentUser.id };
-      }
-      return t;
-    }));
+  const claimTask = async (taskId: string) => {
+    await api.tasks.claim(taskId);
+    await refreshData();
   };
 
   const getPotentialPoints = (task: Task, userId: string): number => {
@@ -277,7 +243,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isTaskLockedForUser = (task: Task, userId: string): { locked: boolean; reason?: string; requiredPoints?: number } => {
-    const user = users.find(u => u.id === userId);
+    const user = familyUsers.find(u => u.id === userId);
     if (!user) return { locked: false };
 
     const monsters = Object.values(MONSTERS).sort((a, b) => a.minScore - b.minScore);
@@ -288,8 +254,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (distance <= 10) {
         const potentialPoints = getPotentialPoints(task, userId);
         if (potentialPoints < nextMonster.minTaskValue) {
-          return { 
-            locked: true, 
+          return {
+            locked: true,
             reason: `Du närmar dig ${nextMonster.name}! För att passera måste du göra ett uppdrag värt minst ${nextMonster.minTaskValue} poäng.`,
             requiredPoints: nextMonster.minTaskValue
           };
@@ -299,120 +265,71 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { locked: false };
   };
 
-  const completeTask = (taskId: string) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, status: TaskStatus.VERIFIED } : t
-    ));
-
-    const task = tasks.find(t => t.id === taskId);
-    if (task && task.assigneeId) {
-      const points = getPotentialPoints(task, task.assigneeId);
-      
-      setUsers(prev => prev.map(u => {
-        if (u.id === task.assigneeId) {
-          const newScore = u.score + points;
-          let newLevel = 1;
-          for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) {
-             if (newScore >= LEVEL_THRESHOLDS[i]) newLevel = i + 1;
-          }
-          return { ...u, score: newScore, level: newLevel };
-        }
-        return u;
-      }));
-    }
+  const completeTask = async (taskId: string) => {
+    await api.tasks.complete(taskId);
+    const userData = await api.auth.me();
+    setCurrentUser(apiUserToUser(userData));
+    await refreshData();
   };
 
-  const verifyTask = (taskId: string) => {
-    setTasks(prev => prev.map(t => 
-        t.id === taskId ? { ...t, status: TaskStatus.VERIFIED } : t
-      ));
+  const verifyTask = async (taskId: string) => {
+    await api.tasks.verify(taskId);
+    await refreshData();
   };
 
-  const addProposal = (title: string, description: string, points: number) => {
-    if (!currentUser || !currentUser.familyId) return;
-    const newProposal: TaskProposal = {
-      id: Date.now().toString(),
-      familyId: currentUser.familyId,
-      title,
-      description,
-      suggestedPoints: points,
-      proposedBy: currentUser.id,
-      createdAt: Date.now()
-    };
-    setProposals(prev => [newProposal, ...prev]);
+  const addProposal = async (title: string, description: string, points: number) => {
+    await api.proposals.create({ title, description, suggestedPoints: points });
+    await refreshData();
   };
 
-  const rejectProposal = (id: string) => {
-    setProposals(prev => prev.filter(p => p.id !== id));
+  const rejectProposal = async (id: string) => {
+    await api.proposals.reject(id);
+    await refreshData();
   };
 
-  const approveProposal = (proposal: TaskProposal, overrides: Record<string, number>, finalPoints: number) => {
-    addTask({
-      title: proposal.title,
-      description: proposal.description,
-      basePoints: finalPoints,
-      userPointsOverride: overrides,
-      bookingDeadline: Date.now() + 86400000, 
-      completionDeadline: Date.now() + 172800000
-    });
-    rejectProposal(proposal.id);
+  const approveProposal = async (proposal: TaskProposal, overrides: Record<string, number>, finalPoints: number) => {
+    await api.proposals.approve(proposal.id, finalPoints, overrides);
+    await refreshData();
   };
 
-  // --- SIDE QUESTS ---
-  const addSideQuest = (assignedTo: string, title: string, description: string, durationHours: number) => {
-    if (!currentUser || !currentUser.familyId) return;
-    const newQuest: SideQuest = {
-      id: Date.now().toString(),
-      familyId: currentUser.familyId,
-      assignedTo,
-      title,
-      description,
-      status: SideQuestStatus.PENDING,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + (durationHours * 60 * 60 * 1000)
-    };
-    setSideQuests(prev => [newQuest, ...prev]);
+  const addSideQuest = async (assignedTo: string, title: string, description: string, durationHours: number) => {
+    await api.sideQuests.create({ assignedTo, title, description, durationHours });
+    await refreshData();
   };
 
-  const deleteSideQuest = (questId: string) => {
-    setSideQuests(prev => prev.filter(sq => sq.id !== questId));
+  const respondToSideQuest = async (questId: string, accepted: boolean) => {
+    await api.sideQuests.respond(questId, accepted);
+    await refreshData();
   };
 
-  const respondToSideQuest = (questId: string, accepted: boolean) => {
-    setSideQuests(prev => prev.map(sq => {
-      if (sq.id === questId) {
-        return { ...sq, status: accepted ? SideQuestStatus.ACTIVE : SideQuestStatus.REJECTED };
-      }
-      return sq;
-    }));
+  const completeSideQuest = async (questId: string) => {
+    await api.sideQuests.complete(questId);
+    await refreshData();
   };
 
-  const completeSideQuest = (questId: string) => {
-    setSideQuests(prev => prev.map(sq => {
-      if (sq.id === questId) {
-        return { ...sq, status: SideQuestStatus.COMPLETED };
-      }
-      return sq;
-    }));
+  const deleteSideQuest = async (questId: string) => {
+    await api.sideQuests.delete(questId);
+    await refreshData();
   };
 
   return (
-    <GameContext.Provider value={{ 
-      users,
+    <GameContext.Provider value={{
+      users: familyUsers,
       familyUsers,
-      tasks: familyTasks, 
-      proposals: familyProposals,
-      sideQuests: familySideQuests,
+      tasks,
+      proposals,
+      sideQuests,
       currentUser,
       currentFamily,
-      login, 
+      loading,
+      login,
       register,
       createFamily,
       joinFamily,
-      logout, 
+      logout,
       updateUserRole,
-      addTask, 
-      claimTask, 
+      addTask,
+      claimTask,
       completeTask,
       verifyTask,
       getPotentialPoints,

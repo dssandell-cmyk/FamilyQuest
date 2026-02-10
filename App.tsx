@@ -15,15 +15,21 @@ const AuthScreen: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name && password) {
-      if (isRegistering) {
-        register(name, password);
-      } else {
-        const success = login(name, password);
-        if (!success) alert('Fel användarnamn eller lösenord');
+    if (name && password && !submitting) {
+      setSubmitting(true);
+      try {
+        if (isRegistering) {
+          await register(name, password);
+        } else {
+          const success = await login(name, password);
+          if (!success) alert('Fel användarnamn eller lösenord');
+        }
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -35,12 +41,12 @@ const AuthScreen: React.FC = () => {
             <h1 className="text-3xl font-display font-bold text-primary mb-2">Family Quest</h1>
             <p className="text-gray-500">{isRegistering ? 'Skapa ditt konto' : 'Välkommen tillbaka'}</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Användarnamn</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary outline-none transition-all"
@@ -50,8 +56,8 @@ const AuthScreen: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1">Lösenord</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary outline-none transition-all"
@@ -59,13 +65,13 @@ const AuthScreen: React.FC = () => {
               required
             />
           </div>
-          <Button type="submit" fullWidth size="lg" className="mt-4 shadow-lg shadow-primary/30">
-            {isRegistering ? 'Skapa Konto' : 'Logga In'}
+          <Button type="submit" fullWidth size="lg" className="mt-4 shadow-lg shadow-primary/30" disabled={submitting}>
+            {submitting ? 'Laddar...' : isRegistering ? 'Skapa Konto' : 'Logga In'}
           </Button>
         </form>
 
         <div className="mt-6 text-center space-y-4">
-            <button 
+            <button
                 onClick={() => setIsRegistering(!isRegistering)}
                 className="text-sm font-bold text-primary hover:underline block w-full"
             >
@@ -73,15 +79,15 @@ const AuthScreen: React.FC = () => {
             </button>
 
             <div className="border-t border-gray-100 pt-4 mt-4">
-                 <button 
+                 <button
                     onClick={() => {
-                        if(window.confirm("Detta raderar alla användare, familjer och uppdrag lokalt. Är du säker?")) {
+                        if(window.confirm("Detta loggar ut dig. Är du säker?")) {
                             resetApp();
                         }
                     }}
                     className="text-xs font-bold text-gray-400 hover:text-red-500 flex items-center justify-center gap-1 mx-auto"
                 >
-                    <Trash2 size={12} /> Nollställ appen / Rensa data
+                    <Trash2 size={12} /> Logga ut / Rensa session
                 </button>
             </div>
         </div>
@@ -97,14 +103,14 @@ const FamilyOnboardingScreen: React.FC = () => {
     const [familyName, setFamilyName] = useState('');
     const [inviteCode, setInviteCode] = useState('');
 
-    const handleCreate = (e: React.FormEvent) => {
+    const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if(familyName) createFamily(familyName);
+        if(familyName) await createFamily(familyName);
     };
 
-    const handleJoin = (e: React.FormEvent) => {
+    const handleJoin = async (e: React.FormEvent) => {
         e.preventDefault();
-        const success = joinFamily(inviteCode.toUpperCase());
+        const success = await joinFamily(inviteCode.toUpperCase());
         if(!success) alert("Kunde inte hitta en familj med den koden.");
     };
 
@@ -119,7 +125,7 @@ const FamilyOnboardingScreen: React.FC = () => {
                 <div className="p-6">
                     {mode === 'SELECT' && (
                         <div className="space-y-4">
-                            <button 
+                            <button
                                 onClick={() => setMode('CREATE')}
                                 className="w-full p-4 rounded-xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 flex items-center gap-4 transition-all"
                             >
@@ -133,7 +139,7 @@ const FamilyOnboardingScreen: React.FC = () => {
                                 <ArrowRight className="ml-auto text-primary" size={20} />
                             </button>
 
-                            <button 
+                            <button
                                 onClick={() => setMode('JOIN')}
                                 className="w-full p-4 rounded-xl border-2 border-secondary/20 bg-secondary/5 hover:bg-secondary/10 flex items-center gap-4 transition-all"
                             >
@@ -153,7 +159,7 @@ const FamilyOnboardingScreen: React.FC = () => {
                          <form onSubmit={handleCreate} className="space-y-4 animate-fade-in">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">Vad heter familjen?</label>
-                                <input 
+                                <input
                                     className="w-full p-3 rounded-xl border border-gray-200"
                                     placeholder="T.ex. Familjen Svensson"
                                     value={familyName}
@@ -174,7 +180,7 @@ const FamilyOnboardingScreen: React.FC = () => {
                            </div>
                            <div>
                                <label className="block text-sm font-bold text-gray-700 mb-1">Ange Familjekod</label>
-                               <input 
+                               <input
                                    className="w-full p-3 rounded-xl border border-gray-200 font-mono text-center tracking-widest uppercase"
                                    placeholder="XXXXXX"
                                    value={inviteCode}
@@ -199,10 +205,21 @@ const FamilyOnboardingScreen: React.FC = () => {
 
 // 3. MAIN APP LAYOUT
 const MainApp: React.FC = () => {
-  const { currentUser } = useGame();
+  const { currentUser, loading } = useGame();
   const [activeTab, setActiveTab] = useState('game');
 
-  // Logic flow
+  // Show loading while checking token
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-tr from-primary to-accent flex items-center justify-center">
+        <div className="text-white text-center">
+          <h1 className="text-3xl font-display font-bold mb-2">Family Quest</h1>
+          <p className="text-white/70">Laddar...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentUser) return <AuthScreen />;
   if (!currentUser.familyId) return <FamilyOnboardingScreen />;
 

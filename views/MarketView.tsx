@@ -38,9 +38,9 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
     sq.assignedTo === currentUser?.id && sq.status === SideQuestStatus.ACTIVE
   );
 
-  const handleProposalSubmit = (e: React.FormEvent) => {
+  const handleProposalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addProposal(propTitle, propDesc, propPoints);
+    await addProposal(propTitle, propDesc, propPoints);
     setPropTitle('');
     setPropDesc('');
     setPropPoints(10);
@@ -65,20 +65,20 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
     setShowCreateModal(true);
   };
 
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    addTask({
+    await addTask({
       title: newTitle,
       description: newDesc,
       basePoints: newBasePoints,
       userPointsOverride: userOverrides,
-      bookingDeadline: Date.now() + (newDuration * 60 * 60 * 1000), 
+      bookingDeadline: Date.now() + (newDuration * 60 * 60 * 1000),
       completionDeadline: Date.now() + (newDuration * 2 * 60 * 60 * 1000),
     });
 
     // If this was a proposal, delete it now
     if (convertingProposalId) {
-        rejectProposal(convertingProposalId);
+        await rejectProposal(convertingProposalId);
         setConvertingProposalId(null);
     }
 
