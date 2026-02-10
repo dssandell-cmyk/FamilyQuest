@@ -14,7 +14,6 @@ export interface Family {
 export interface User {
   id: string;
   name: string;
-  password?: string; // Simple password for demo
   familyId?: string;
   role: UserRole;
   score: number;
