@@ -100,8 +100,8 @@ export const GameView: React.FC = () => {
   };
 
   return (
-    <div className="pb-10 bg-gray-50 min-h-full flex flex-col">
-      
+    <div className="pb-10 bg-gray-50 min-h-full flex flex-col lg:flex-row lg:gap-0">
+
       {/* Monster Popup Modal */}
       {activeMonster && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedMonster(null)}>
@@ -134,9 +134,10 @@ export const GameView: React.FC = () => {
       )}
 
       {/* GAME BOARD SECTION */}
-      <div 
+      <div
         className={`
-            relative w-full bg-slate-900 overflow-hidden shadow-2xl border-b-4 border-slate-800 transition-all duration-500 ease-in-out cursor-pointer group
+            relative w-full lg:w-1/2 xl:w-3/5 bg-slate-900 overflow-hidden shadow-2xl border-b-4 lg:border-b-0 lg:border-r-4 border-slate-800 transition-all duration-500 ease-in-out cursor-pointer group
+            lg:!h-screen lg:sticky lg:top-0 lg:cursor-default
             ${isMapExpanded ? 'z-40' : ''}
         `}
         style={{ height: isMapExpanded ? '65vh' : '200px' }}
@@ -294,19 +295,21 @@ export const GameView: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-6 mt-6 flex-1">
+      <div className="px-6 mt-6 flex-1 lg:w-1/2 xl:w-2/5 lg:py-6 lg:overflow-y-auto">
         
         {myTasks.length > 0 && (
           <div className="mb-8">
             <h3 className="font-display font-bold text-gray-800 text-lg mb-3">Dina uppdrag</h3>
+            <div className="space-y-4">
             {myTasks.map(task => (
-                <TaskCard 
-                  key={task.id} 
-                  task={task} 
-                  variant="my-tasks" 
-                  onComplete={() => completeTask(task.id)} 
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  variant="my-tasks"
+                  onComplete={() => completeTask(task.id)}
                 />
             ))}
+            </div>
           </div>
         )}
 

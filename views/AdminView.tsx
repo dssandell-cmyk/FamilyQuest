@@ -63,12 +63,14 @@ export const AdminView: React.FC = () => {
   };
 
   return (
-    <div className="pt-6 px-6 pb-20">
-      
+    <div className="pt-6 px-6 pb-20 lg:pb-8">
+
       <div className="mb-6">
         <h2 className="text-2xl font-display font-bold text-gray-900 mb-1">Min Familj</h2>
         <p className="text-gray-500 text-sm">Hantera medlemmar och bjud in nya.</p>
       </div>
+
+      <div className="lg:grid lg:grid-cols-2 lg:gap-8">
 
       {/* Invite Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 text-center">
@@ -214,13 +216,15 @@ export const AdminView: React.FC = () => {
         )}
       </div>
 
-      {/* Member List */}
-      <div className="space-y-4">
+      </div>{/* end grid left column */}
+
+      {/* Member List - right column on desktop */}
+      <div className="space-y-4 mt-6 lg:mt-0">
         <h3 className="flex items-center gap-2 font-display font-bold text-gray-800">
-            <Users size={18} className="text-primary" /> 
+            <Users size={18} className="text-primary" />
             Medlemmar ({familyUsers.length})
         </h3>
-        
+
         <div className="space-y-3">
             {familyUsers.map(user => {
                 const isAdmin = user.role === UserRole.ADMIN;
@@ -277,6 +281,7 @@ export const AdminView: React.FC = () => {
             })}
         </div>
       </div>
+      </div>{/* end grid */}
     </div>
   );
 };

@@ -42,7 +42,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
 
   return (
     <div className={`
-      relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-4 transition-all
+      relative bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all
       ${task.status === TaskStatus.VERIFIED ? 'opacity-60 grayscale' : ''}
       ${task.isBossTask ? 'border-2 border-yellow-400 bg-yellow-50' : ''}
       ${isLocked ? 'opacity-70 bg-gray-50 border-gray-200' : ''}
