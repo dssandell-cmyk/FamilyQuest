@@ -11,8 +11,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: frontendUrl,
   credentials: true,
 }));
 app.use(express.json());

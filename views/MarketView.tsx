@@ -356,14 +356,15 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
             {openTasks.length === 0 ? (
                 <p className="text-sm text-gray-400 italic">Inga lediga uppdrag just nu. Be admin lägga upp fler!</p>
             ) : (
-                openTasks.map(task => {
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {openTasks.map(task => {
                     const lockStatus = currentUser ? isTaskLockedForUser(task, currentUser.id) : { locked: false };
                     
                     return (
-                        <TaskCard 
-                            key={task.id} 
-                            task={task} 
-                            variant="market" 
+                        <TaskCard
+                            key={task.id}
+                            task={task}
+                            variant="market"
                             isLocked={lockStatus.locked}
                             lockReason={lockStatus.reason}
                             onClaim={() => {
@@ -373,7 +374,8 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
                             }}
                         />
                     );
-                })
+                })}
+                </div>
             )}
         </section>
 
@@ -382,19 +384,21 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
              {assignedTasks.length === 0 ? (
                 <p className="text-sm text-gray-400 italic">Allt är lugnt...</p>
             ) : (
-                assignedTasks.map(task => (
-                    <TaskCard 
-                        key={task.id} 
-                        task={task} 
-                        variant="admin" 
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {assignedTasks.map(task => (
+                    <TaskCard
+                        key={task.id}
+                        task={task}
+                        variant="admin"
                     />
-                ))
+                ))}
+                </div>
             )}
         </section>
       </div>
 
       {currentUser?.role === UserRole.ADMIN && (
-        <button 
+        <button
             onClick={() => {
                 setConvertingProposalId(null);
                 setNewTitle('');
@@ -402,7 +406,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
                 setNewBasePoints(10);
                 setShowCreateModal(true);
             }}
-            className="fixed bottom-24 right-6 bg-primary text-white w-14 h-14 rounded-full shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40"
+            className="fixed bottom-24 right-6 lg:bottom-8 lg:right-8 bg-primary text-white w-14 h-14 rounded-full shadow-lg shadow-primary/40 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40"
             title="Skapa nytt uppdrag"
         >
             <Plus size={28} strokeWidth={3} />
