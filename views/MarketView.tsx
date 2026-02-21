@@ -29,6 +29,11 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
   const [propTitle, setPropTitle] = useState('');
   const [propDesc, setPropDesc] = useState('');
   const [propPoints, setPropPoints] = useState(10);
+  // Side Quest Proposal State
+  const [showSqProposalForm, setShowSqProposalForm] = useState(false);
+  const [sqPropTitle, setSqPropTitle] = useState('');
+  const [sqPropDesc, setSqPropDesc] = useState('');
+  const [sqPropTarget, setSqPropTarget] = useState('');
 
   const openTasks = tasks.filter(t => t.status === TaskStatus.OPEN);
   const assignedTasks = tasks.filter(t => t.status === TaskStatus.ASSIGNED);
@@ -46,6 +51,11 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
     setPropPoints(10);
     setShowProposalForm(false);
     alert('Ditt förslag har skickats till admin!');
+  };
+
+  const handleSqProposalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    alert('Snyggt! Formuläret funkar. I nästa steg kopplar vi detta till databasen!');
   };
 
   const handleGenerateDesc = async () => {
@@ -301,6 +311,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
 
       {/* MEMBER SECTION: PROPOSAL FORM */}
       {currentUser?.role !== UserRole.ADMIN && (
+        <>
         <div className="bg-white rounded-xl shadow-sm border border-orange-100 overflow-hidden mb-6">
             <button 
               onClick={() => setShowProposalForm(!showProposalForm)}
@@ -348,7 +359,57 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
                 </form>
             )}
         </div>
-      )}
+        {/* SIDE QUEST PROPOSAL FORM */}
+        <div className="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden mt-4">
+            <button 
+              onClick={() => setShowSqProposalForm(!showSqProposalForm)}
+              className="w-full flex items-center justify-between p-4 bg-purple-50 text-purple-600 font-bold"
+            >
+                <div className="flex items-center gap-2">
+                    <Gift size={20} />
+                    <span>Föreslå ett Side Quest till någon!</span>
+                </div>
+                {showSqProposalForm ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
+            
+            {showSqProposalForm && (
+                <form onSubmit={handleSqProposalSubmit} className="p-4 space-y-3">
+                    <select 
+                      className="w-full p-2 rounded-lg border border-gray-200 text-sm"
+                      value={sqPropTarget}
+                      onChange={e => setSqPropTarget(e.target.value)}
+                      required
+                    >
+                        <option value="">-- Vem ska göra utmaningen? --</option>
+                        {familyUsers.map(u => (
+                            <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                    </select>
+                    <input 
+                      className="w-full p-2 rounded-lg border border-gray-200 text-sm"
+                      placeholder="Vad är utmaningen?"
+                      value={sqPropTitle}
+                      onChange={e => setSqPropTitle(e.target.value)}
+                      required
+                    />
+                    <textarea 
+                      className="w-full p-2 rounded-lg border border-gray-200 text-sm"
+                      placeholder="Beskriv vad som ska göras..."
+                      value={sqPropDesc}
+                      onChange={e => setSqPropDesc(e.target.value)}
+                      rows={2}
+                      required
+                    />
+                    <div className="flex justify-end">
+                        <Button type="submit" size="sm" className="bg-purple-600 hover:bg-purple-700 shadow-purple-200 border-none text-white">
+                          Skicka Förslag
+                        </Button>
+                    </div>
+                </form>
+            )}
+        </div>
+      </>
+        )}
 
       <div className="space-y-6">
         <section>
