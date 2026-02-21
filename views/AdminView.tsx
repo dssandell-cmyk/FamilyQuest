@@ -1,19 +1,28 @@
 
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Users, QrCode, Copy, Shield, Trophy, Gift, Send, Clock, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { UserRole, SideQuestStatus } from '../types';
+import { Users, QrCode, Copy, Shield, Trophy, Gift, Send, Clock, Trash2, CheckCircle, Edit3, X, ChevronDown, ListChecks } from 'lucide-react';
+import { UserRole, SideQuestStatus, TaskStatus, Task, User } from '../types';
 import { Button } from '../components/Button';
 
 export const AdminView: React.FC = () => {
-  const { familyUsers, currentFamily, currentUser, updateUserRole, addSideQuest, sideQuests, deleteSideQuest } = useGame();
-  
+  const { familyUsers, currentFamily, currentUser, updateUserRole, addSideQuest, sideQuests, deleteSideQuest, tasks, editTask, deleteTask } = useGame();
+
   // Side Quest State
   const [showSideQuestForm, setShowSideQuestForm] = useState(false);
   const [sqUser, setSqUser] = useState('');
   const [sqTitle, setSqTitle] = useState('');
   const [sqDesc, setSqDesc] = useState('');
-  const [sqDuration, setSqDuration] = useState(4); // Default 4 hours
+  const [sqDuration, setSqDuration] = useState(4);
+
+  // Task edit state
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editPoints, setEditPoints] = useState(10);
+
+  // Member detail view
+  const [selectedMember, setSelectedMember] = useState<User | null>(null);
 
   const handleCopyCode = () => {
     if (currentFamily?.inviteCode) {
@@ -35,11 +44,33 @@ export const AdminView: React.FC = () => {
     }
   };
 
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setEditTitle(task.title);
+    setEditDesc(task.description);
+    setEditPoints(task.basePoints);
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingTask && editTitle) {
+      await editTask(editingTask.id, {
+        title: editTitle,
+        description: editDesc,
+        basePoints: editPoints,
+      });
+      setEditingTask(null);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (window.confirm('Är du säker på att du vill radera detta uppdrag?')) {
+      await deleteTask(taskId);
+    }
+  };
+
   const getStatusBadge = (status: SideQuestStatus, expiresAt: number) => {
       const isExpired = Date.now() > expiresAt && status === SideQuestStatus.PENDING;
-
       if (isExpired) return <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[10px] font-bold border border-gray-200">UTGÅNGEN</span>;
-
       switch(status) {
           case SideQuestStatus.PENDING:
               return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-bold border border-yellow-200">VÄNTAR</span>;
@@ -62,13 +93,138 @@ export const AdminView: React.FC = () => {
       return `${hours}h ${minutes}m`;
   };
 
+  const activeTasks = tasks.filter(t => t.status === TaskStatus.OPEN || t.status === TaskStatus.ASSIGNED);
+
+  const getCompletedTasksForMember = (userId: string) => {
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    return tasks.filter(t =>
+      t.assigneeId === userId &&
+      t.status === TaskStatus.VERIFIED &&
+      t.createdAt > sevenDaysAgo
+    );
+  };
+
+  const getTaskStatusLabel = (status: TaskStatus) => {
+    switch (status) {
+      case TaskStatus.OPEN: return <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-200">LEDIG</span>;
+      case TaskStatus.ASSIGNED: return <span className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded border border-yellow-200">BOKAD</span>;
+      default: return null;
+    }
+  };
+
   return (
     <div className="pt-6 px-6 pb-20 lg:pb-8">
 
       <div className="mb-6">
         <h2 className="text-2xl font-display font-bold text-gray-900 mb-1">Min Familj</h2>
-        <p className="text-gray-500 text-sm">Hantera medlemmar och bjud in nya.</p>
+        <p className="text-gray-500 text-sm">Hantera medlemmar, uppdrag och bjud in nya.</p>
       </div>
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-bounce-in">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="font-display font-bold text-lg">Redigera Uppdrag</h3>
+              <button onClick={() => setEditingTask(null)} className="p-2 text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Titel</label>
+                <input
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-gray-200"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Beskrivning</label>
+                <textarea
+                  value={editDesc}
+                  onChange={e => setEditDesc(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-gray-200 text-sm"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Baspoäng</label>
+                <input
+                  type="number"
+                  value={editPoints}
+                  onChange={e => setEditPoints(Number(e.target.value))}
+                  className="w-full p-3 rounded-xl border border-gray-200"
+                  min="1"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setEditingTask(null)} className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-500 font-bold text-sm hover:bg-gray-50">
+                  Avbryt
+                </button>
+                <Button onClick={handleSaveEdit} fullWidth className="flex-1">
+                  Spara
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Member Detail Modal */}
+      {selectedMember && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedMember(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-bounce-in max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <img src={selectedMember.avatar} alt={selectedMember.name} className="w-10 h-10 rounded-full border border-gray-100" />
+                <div>
+                  <h3 className="font-display font-bold text-lg">{selectedMember.name}</h3>
+                  <p className="text-xs text-gray-500">{selectedMember.score} XP</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedMember(null)} className="p-2 text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <CheckCircle size={14} className="text-green-500" />
+                Genomförda uppdrag (senaste 7 dagarna)
+              </h4>
+              {(() => {
+                const completedTasks = getCompletedTasksForMember(selectedMember.id);
+                if (completedTasks.length === 0) {
+                  return <p className="text-sm text-gray-400 italic py-4 text-center">Inga genomförda uppdrag de senaste 7 dagarna.</p>;
+                }
+                return (
+                  <div className="space-y-2">
+                    {completedTasks.map(task => {
+                      const points = task.userPointsOverride[selectedMember.id] ?? task.basePoints;
+                      const daysAgo = Math.floor((Date.now() - task.createdAt) / (1000 * 60 * 60 * 24));
+                      return (
+                        <div key={task.id} className="bg-green-50 border border-green-100 rounded-xl p-3">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <h5 className="font-bold text-gray-800 text-sm truncate">{task.title}</h5>
+                              {task.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.description}</p>}
+                            </div>
+                            <span className="bg-green-200 text-green-800 text-xs font-bold px-2 py-0.5 rounded-full ml-2 shrink-0">+{points}p</span>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-2">
+                            {daysAgo === 0 ? 'Idag' : daysAgo === 1 ? 'Igår' : `${daysAgo} dagar sedan`}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-8">
 
@@ -82,12 +238,11 @@ export const AdminView: React.FC = () => {
           <p className="text-sm text-gray-500 mb-6">
             Låt andra skanna koden eller ange familjekoden nedan för att gå med.
           </p>
-          
-          {/* Simulated QR Code */}
+
           <div className="bg-white p-2 inline-block rounded-xl border-2 border-dashed border-gray-200 mb-6">
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentFamily?.inviteCode}`} 
-                alt="QR Code" 
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentFamily?.inviteCode}`}
+                alt="QR Code"
                 className="w-32 h-32 rounded-lg opacity-90"
               />
           </div>
@@ -97,7 +252,7 @@ export const AdminView: React.FC = () => {
                   <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Familjekod</span>
                   <span className="font-mono text-xl font-bold text-gray-800 tracking-widest">{currentFamily?.inviteCode}</span>
               </div>
-              <button 
+              <button
                 onClick={handleCopyCode}
                 className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                 title="Kopiera kod"
@@ -113,14 +268,14 @@ export const AdminView: React.FC = () => {
             <h3 className="font-bold flex items-center gap-2">
                 <Gift size={20} /> Skapa Side Quest
             </h3>
-            <button 
-                onClick={() => setShowSideQuestForm(!showSideQuestForm)} 
+            <button
+                onClick={() => setShowSideQuestForm(!showSideQuestForm)}
                 className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full font-bold transition-colors"
             >
                 {showSideQuestForm ? 'Avbryt' : 'Nytt Uppdrag'}
             </button>
         </div>
-        
+
         {!showSideQuestForm && (
             <p className="text-xs text-purple-100 mb-2">
                 Ge ett specialuppdrag till någon. Inga XP, bara ära!
@@ -131,7 +286,7 @@ export const AdminView: React.FC = () => {
             <form onSubmit={handleCreateSideQuest} className="bg-white rounded-xl p-4 text-gray-800 animate-slide-up space-y-3">
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">Välj Hjälte</label>
-                    <select 
+                    <select
                         className="w-full p-2 rounded-lg border border-gray-200 text-sm"
                         value={sqUser}
                         onChange={e => setSqUser(e.target.value)}
@@ -145,7 +300,7 @@ export const AdminView: React.FC = () => {
                 </div>
                 <div>
                      <label className="block text-xs font-bold text-gray-500 mb-1">Uppdrag</label>
-                     <input 
+                     <input
                         className="w-full p-2 rounded-lg border border-gray-200 text-sm"
                         placeholder="T.ex. Lördagsgodis-uppdraget"
                         value={sqTitle}
@@ -156,7 +311,7 @@ export const AdminView: React.FC = () => {
                 <div className="flex gap-2">
                     <div className="flex-1">
                         <label className="block text-xs font-bold text-gray-500 mb-1">Giltighetstid (timmar)</label>
-                        <input 
+                        <input
                             type="number"
                             className="w-full p-2 rounded-lg border border-gray-200 text-sm"
                             value={sqDuration}
@@ -169,7 +324,7 @@ export const AdminView: React.FC = () => {
                 </div>
                 <div>
                      <label className="block text-xs font-bold text-gray-500 mb-1">Beskrivning</label>
-                     <textarea 
+                     <textarea
                         className="w-full p-2 rounded-lg border border-gray-200 text-sm"
                         placeholder="Vad ska göras?"
                         value={sqDesc}
@@ -183,7 +338,6 @@ export const AdminView: React.FC = () => {
             </form>
         )}
 
-        {/* List of Sent Side Quests */}
         {sideQuests.length > 0 && (
             <div className="mt-4 pt-4 border-t border-white/20">
                 <h4 className="text-xs font-bold uppercase tracking-wider mb-2 text-purple-100 opacity-80">Skickade Side Quests</h4>
@@ -199,11 +353,11 @@ export const AdminView: React.FC = () => {
                                     </div>
                                     <div className="text-[10px] text-purple-200 flex items-center gap-1">
                                         <Users size={10} /> Till: {assignedUser?.name || 'Okänd'}
-                                        <span className="mx-1">•</span>
+                                        <span className="mx-1">&bull;</span>
                                         <Clock size={10} /> {formatTimeLeft(sq.expiresAt || 0)} kvar
                                     </div>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => deleteSideQuest(sq.id)}
                                     className="p-1.5 hover:bg-white/20 rounded text-purple-200 hover:text-white transition-colors"
                                 >
@@ -216,6 +370,60 @@ export const AdminView: React.FC = () => {
             </div>
         )}
       </div>
+
+      {/* Published Tasks Management */}
+      {activeTasks.length > 0 && (
+        <div className="mb-6">
+          <h3 className="flex items-center gap-2 font-display font-bold text-gray-800 mb-3">
+            <ListChecks size={18} className="text-primary" />
+            Publicerade Uppdrag ({activeTasks.length})
+          </h3>
+          <div className="space-y-2">
+            {activeTasks.map(task => {
+              const assignee = familyUsers.find(u => u.id === task.assigneeId);
+              return (
+                <div key={task.id} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-bold text-gray-800 text-sm truncate">{task.title}</h4>
+                        {getTaskStatusLabel(task.status)}
+                      </div>
+                      {task.description && (
+                        <p className="text-xs text-gray-500 line-clamp-1">{task.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400">
+                        <span className="font-bold">{task.basePoints}p</span>
+                        {assignee && (
+                          <span className="flex items-center gap-1">
+                            <Users size={10} /> {assignee.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => handleEditTask(task)}
+                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Redigera"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Radera"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       </div>{/* end grid left column */}
 
@@ -230,16 +438,20 @@ export const AdminView: React.FC = () => {
             {familyUsers.map(user => {
                 const isAdmin = user.role === UserRole.ADMIN;
                 const isMe = user.id === currentUser?.id;
+                const completedCount = getCompletedTasksForMember(user.id).length;
 
                 return (
-                    <div 
-                        key={user.id} 
+                    <div
+                        key={user.id}
                         className={`
                             bg-white p-4 rounded-xl border flex flex-col gap-3 shadow-sm transition-all
                             ${isAdmin ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100'}
                         `}
                     >
-                        <div className="flex items-center gap-3">
+                        <button
+                            className="flex items-center gap-3 w-full text-left"
+                            onClick={() => setSelectedMember(user)}
+                        >
                             <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full border border-gray-100" />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
@@ -253,22 +465,30 @@ export const AdminView: React.FC = () => {
                                 <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
                                     <Trophy size={12} className="text-yellow-500" />
                                     {user.score} XP
+                                    {completedCount > 0 && (
+                                      <>
+                                        <span className="text-gray-300">|</span>
+                                        <CheckCircle size={12} className="text-green-500" />
+                                        {completedCount} klara (7d)
+                                      </>
+                                    )}
                                 </div>
                             </div>
                             {isMe && <span className="text-xs text-gray-400 font-bold italic pr-2">DU</span>}
-                        </div>
+                            <ChevronDown size={16} className="text-gray-300" />
+                        </button>
 
                         {!isMe && (
                             <div className="flex gap-2 border-t border-gray-100 pt-3 mt-1">
                                 {isAdmin ? (
-                                    <button 
+                                    <button
                                         onClick={() => updateUserRole(user.id, UserRole.MEMBER)}
                                         className="flex-1 bg-white border border-red-200 text-red-500 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
                                     >
                                         Ta bort Admin
                                     </button>
                                 ) : (
-                                    <button 
+                                    <button
                                         onClick={() => updateUserRole(user.id, UserRole.ADMIN)}
                                         className="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-indigo-200 shadow-sm transition-all active:scale-95"
                                     >

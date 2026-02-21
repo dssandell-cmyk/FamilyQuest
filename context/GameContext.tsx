@@ -25,6 +25,8 @@ interface GameContextType {
 
   // Tasks
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'status' | 'createdBy' | 'familyId'>) => Promise<void>;
+  editTask: (taskId: string, data: { title?: string; description?: string; basePoints?: number; userPointsOverride?: Record<string, number>; bookingDeadline?: number; completionDeadline?: number }) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
   claimTask: (taskId: string) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
   verifyTask: (taskId: string) => Promise<void>;
@@ -233,6 +235,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await refreshData();
   };
 
+  const editTask = async (taskId: string, data: { title?: string; description?: string; basePoints?: number; userPointsOverride?: Record<string, number>; bookingDeadline?: number; completionDeadline?: number }) => {
+    await api.tasks.update(taskId, data);
+    await refreshData();
+  };
+
+  const deleteTask = async (taskId: string) => {
+    await api.tasks.delete(taskId);
+    await refreshData();
+  };
+
   const claimTask = async (taskId: string) => {
     await api.tasks.claim(taskId);
     await refreshData();
@@ -329,6 +341,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout,
       updateUserRole,
       addTask,
+      editTask,
+      deleteTask,
       claimTask,
       completeTask,
       verifyTask,

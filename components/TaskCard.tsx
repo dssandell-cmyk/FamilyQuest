@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Task, TaskStatus } from '../types';
 import { useGame } from '../context/GameContext';
 import { Button } from './Button';
-import { Clock, Trophy, User as UserIcon, AlertCircle, Sparkles, Users, Lock } from 'lucide-react';
+import { Clock, Trophy, User as UserIcon, AlertCircle, Sparkles, Users, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -15,6 +15,7 @@ interface TaskCardProps {
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, variant = 'market', isLocked = false, lockReason }) => {
   const { currentUser, getPotentialPoints, users } = useGame();
+  const [expanded, setExpanded] = useState(false);
   
   // Calculate points for the viewer
   const points = currentUser ? getPotentialPoints(task, currentUser.id) : task.basePoints;
@@ -55,11 +56,25 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
 
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1 pr-2">
-          <h3 className="font-display font-bold text-gray-800 text-lg leading-tight flex items-center gap-2">
-             {isLocked && <Lock size={16} className="text-gray-400" />}
-             {task.title}
-          </h3>
-          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+          {variant === 'my-tasks' ? (
+            <button className="text-left w-full" onClick={() => setExpanded(!expanded)}>
+              <h3 className="font-display font-bold text-gray-800 text-lg leading-tight flex items-center gap-2">
+                {task.title}
+                {task.description && (
+                  expanded ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />
+                )}
+              </h3>
+              <p className={`text-sm text-gray-500 mt-1 ${expanded ? '' : 'line-clamp-1'}`}>{task.description}</p>
+            </button>
+          ) : (
+            <>
+              <h3 className="font-display font-bold text-gray-800 text-lg leading-tight flex items-center gap-2">
+                {isLocked && <Lock size={16} className="text-gray-400" />}
+                {task.title}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+            </>
+          )}
         </div>
         <div className="flex flex-col items-end shrink-0">
           <div className={`
