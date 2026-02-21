@@ -11,11 +11,13 @@ interface MarketViewProps {
 }
 
 export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
-  const { tasks, claimTask, currentUser, isTaskLockedForUser, addProposal, addTask, familyUsers, proposals, rejectProposal, sideQuests, completeSideQuest } = useGame();
+ const { tasks, claimTask, currentUser, isTaskLockedForUser, addProposal, addTask, familyUsers, proposals, rejectProposal, sideQuests, completeSideQuest, addSideQuest } = useGame();
   
   // Create Task State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [convertingProposalId, setConvertingProposalId] = useState<string | null>(null);
+  const [isConvertingSideQuest, setIsConvertingSideQuest] = useState(false);
+  const [sqTargetUser, setSqTargetUser] = useState<string | null>(null);
 
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -53,9 +55,21 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
     alert('Ditt förslag har skickats till admin!');
   };
 
-  const handleSqProposalSubmit = async (e: React.FormEvent) => {
+ const handleSqProposalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Snyggt! Formuläret funkar. I nästa steg kopplar vi detta till databasen!');
+    
+    // Vi lägger till en tydlig markering i titeln så Admin vet att det är ett Side Quest
+    const formattedTitle = `🌟 SIDE QUEST: ${sqPropTitle}`;
+    
+    // Vi använder vanliga addProposal, men skickar in 0 poäng (Side Quests ger ju bara ära!)
+    await addProposal(formattedTitle, sqPropDesc, 0);
+    
+    // Rensa och stäng formuläret
+    setSqPropTitle('');
+    setSqPropDesc('');
+    setShowSqProposalForm(false);
+    
+    alert('Ditt förslag på Side Quest har skickats till Admin!');
   };
 
   const handleGenerateDesc = async () => {
@@ -67,47 +81,70 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
   };
 
   // Pre-fill creation form from proposal
+ // Pre-fill creation form from proposal
+// Pre-fill creation form from proposal
   const handleApproveProposal = (proposal: TaskProposal) => {
-    setNewTitle(proposal.title);
+    if (proposal.title.startsWith('🌟 SIDE QUEST:')) {
+        // Det är ett Side Quest! Tvätta titeln och kom ihåg vem som föreslog det
+        setNewTitle(proposal.title.replace('🌟 SIDE QUEST: ', ''));
+        setIsConvertingSideQuest(true);
+        setSqTargetUser(proposal.proposedBy);
+    } else {
+        // Det är ett vanligt uppdrag
+        setNewTitle(proposal.title);
+        setIsConvertingSideQuest(false);
+        setSqTargetUser(null);
+    }
     setNewDesc(proposal.description);
-    setNewBasePoints(proposal.suggestedPoints);
+    setNewBasePoints(proposal.suggestedPoints || 0);
     setConvertingProposalId(proposal.id);
-    setShowCreateModal(true);
+    setShowCreateModal(true); // Öppna granskningsrutan!
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addTask({
-      title: newTitle,
-      description: newDesc,
-      basePoints: newBasePoints,
-      userPointsOverride: userOverrides,
-      bookingDeadline: Date.now() + (newDuration * 60 * 60 * 1000),
-      completionDeadline: Date.now() + (newDuration * 2 * 60 * 60 * 1000),
-    });
+    
+    if (isConvertingSideQuest && sqTargetUser) {
+        // Skapa ett riktigt Side Quest när Admin klickar spara
+        await addSideQuest(sqTargetUser, newTitle, newDesc, newDuration);
+    } else {
+        // Skapa ett vanligt uppdrag
+        await addTask({
+            title: newTitle,
+            description: newDesc,
+            basePoints: newBasePoints,
+            userPointsOverride: userOverrides,
+            bookingDeadline: Date.now() + (newDuration * 60 * 60 * 1000),
+            completionDeadline: Date.now() + (newDuration * 2 * 60 * 60 * 1000),
+        });
+    }
 
-    // If this was a proposal, delete it now
+    // Ta bort förslaget från inkorgen
     if (convertingProposalId) {
         await rejectProposal(convertingProposalId);
         setConvertingProposalId(null);
     }
 
+    // Återställ formuläret
     setNewTitle('');
     setNewDesc('');
     setNewBasePoints(10);
     setUserOverrides({});
     setNewDuration(24);
+    setIsConvertingSideQuest(false);
+    setSqTargetUser(null);
     setShowCreateModal(false);
   };
 
   const handleCloseModal = () => {
     setShowCreateModal(false);
     setConvertingProposalId(null);
+    setIsConvertingSideQuest(false);
+    setSqTargetUser(null);
     setNewTitle('');
     setNewDesc('');
     setNewBasePoints(10);
   };
-
   const handleOverrideChange = (userId: string, value: string) => {
     const numValue = parseInt(value);
     setUserOverrides(prev => {
