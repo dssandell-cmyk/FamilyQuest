@@ -72,6 +72,7 @@ export const AdminView: React.FC = () => {
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-8">
 
+      <div>{/* Left column */}
       {/* Invite Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 text-center">
           <div className="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600">
