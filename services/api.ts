@@ -92,6 +92,20 @@ export const api = {
       request<{ success: boolean }>(`/api/tasks/${id}/complete`, { method: 'PUT' }),
     verify: (id: string) =>
       request<{ success: boolean }>(`/api/tasks/${id}/verify`, { method: 'PUT' }),
+    update: (id: string, data: {
+      title?: string;
+      description?: string;
+      basePoints?: number;
+      userPointsOverride?: Record<string, number>;
+      bookingDeadline?: number;
+      completionDeadline?: number;
+    }) =>
+      request<ApiTask>(`/api/tasks/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      request<{ success: boolean }>(`/api/tasks/${id}`, { method: 'DELETE' }),
   },
 
   proposals: {

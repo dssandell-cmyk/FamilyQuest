@@ -174,4 +174,77 @@ router.put('/:id/verify', async (req: Request, res: Response) => {
   }
 });
 
+// PUT /api/tasks/:id - Edit task (admin)
+router.put('/:id', async (req: Request, res: Response) => {
+  const { title, description, basePoints, userPointsOverride, bookingDeadline, completionDeadline } = req.body;
+
+  try {
+    const familyId = await getUserFamilyId(req.userId!);
+    if (!familyId) {
+      res.status(400).json({ error: 'Du måste tillhöra en familj' });
+      return;
+    }
+
+    const existing = await pool.query('SELECT * FROM tasks WHERE id = $1 AND family_id = $2', [req.params.id, familyId]);
+    if (existing.rows.length === 0) {
+      res.status(404).json({ error: 'Uppgiften hittades inte' });
+      return;
+    }
+
+    const result = await pool.query(
+      `UPDATE tasks SET title = COALESCE($1, title), description = COALESCE($2, description),
+       base_points = COALESCE($3, base_points), user_points_override = COALESCE($4, user_points_override),
+       booking_deadline = COALESCE($5, booking_deadline), completion_deadline = COALESCE($6, completion_deadline)
+       WHERE id = $7 RETURNING *`,
+      [title, description, basePoints, userPointsOverride ? JSON.stringify(userPointsOverride) : null, bookingDeadline, completionDeadline, req.params.id]
+    );
+
+    const t = result.rows[0];
+    res.json({
+      id: t.id,
+      familyId: t.family_id,
+      title: t.title,
+      description: t.description,
+      basePoints: t.base_points,
+      userPointsOverride: t.user_points_override || {},
+      status: t.status,
+      assigneeId: t.assignee_id,
+      createdBy: t.created_by,
+      createdAt: new Date(t.created_at).getTime(),
+      bookingDeadline: Number(t.booking_deadline),
+      completionDeadline: Number(t.completion_deadline),
+      isBossTask: t.is_boss_task,
+    });
+  } catch (err) {
+    console.error('Edit task error:', err);
+    res.status(500).json({ error: 'Serverfel' });
+  }
+});
+
+// DELETE /api/tasks/:id - Delete task (admin)
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const familyId = await getUserFamilyId(req.userId!);
+    if (!familyId) {
+      res.status(400).json({ error: 'Du måste tillhöra en familj' });
+      return;
+    }
+
+    const result = await pool.query(
+      'DELETE FROM tasks WHERE id = $1 AND family_id = $2 RETURNING id',
+      [req.params.id, familyId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Uppgiften hittades inte' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete task error:', err);
+    res.status(500).json({ error: 'Serverfel' });
+  }
+});
+
 export default router;
