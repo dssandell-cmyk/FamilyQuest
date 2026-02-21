@@ -10,7 +10,7 @@ export const AdminView: React.FC = () => {
 
   // Side Quest State
   const [showSideQuestForm, setShowSideQuestForm] = useState(false);
-  const [sqUser, setSqUser] = useState('');
+  const [sqUsers, setSqUsers] = useState<string[]>([]);
   const [sqTitle, setSqTitle] = useState('');
   const [sqDesc, setSqDesc] = useState('');
   const [sqDuration, setSqDuration] = useState(4);
@@ -31,18 +31,28 @@ export const AdminView: React.FC = () => {
     }
   };
 
-  const handleCreateSideQuest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (sqUser && sqTitle) {
-      await addSideQuest(sqUser, sqTitle, sqDesc, sqDuration);
-      setSqUser('');
-      setSqTitle('');
-      setSqDesc('');
-      setSqDuration(4);
-      setShowSideQuestForm(false);
-      alert('Side Quest skickat!');
+ const handleCreateSideQuest = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Kolla så vi har valt minst en person OCH skrivit en titel
+  if (sqUsers.length > 0 && sqTitle) {
+    
+    // Här är magin! Vi loopar igenom alla valda användare och skapar en quest till varje
+    for (const userId of sqUsers) {
+      await addSideQuest(userId, sqTitle, sqDesc, sqDuration);
     }
-  };
+    
+    // Nollställ formuläret när allt är klart
+    setSqUsers([]); 
+    setSqTitle('');
+    setSqDesc('');
+    setSqDuration(4);
+    setShowSideQuestForm(false);
+    alert('Side Quests skickade!');
+  } else {
+    alert('Du måste välja minst en hjälte och skriva en titel!');
+  }
+};
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
@@ -285,19 +295,29 @@ export const AdminView: React.FC = () => {
         {showSideQuestForm && (
             <form onSubmit={handleCreateSideQuest} className="bg-white rounded-xl p-4 text-gray-800 animate-slide-up space-y-3">
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Välj Hjälte</label>
-                    <select
-                        className="w-full p-2 rounded-lg border border-gray-200 text-sm"
-                        value={sqUser}
-                        onChange={e => setSqUser(e.target.value)}
-                        required
-                    >
-                        <option value="">-- Välj medlem --</option>
-                        {familyUsers.filter(u => u.id !== currentUser?.id).map(u => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                    </select>
-                </div>
+    <label className="block text-xs font-bold text-gray-500 mb-2">Välj Hjältar (du kan välja flera)</label>
+    <div className="grid grid-cols-2 gap-2">
+        {familyUsers.filter(u => u.id !== currentUser?.id).map(u => (
+            <label key={u.id} className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 text-sm transition-colors">
+                <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    checked={sqUsers.includes(u.id)}
+                    onChange={(e) => {
+                        if (e.target.checked) {
+                            // Lägg till i listan om den kryssas i
+                            setSqUsers([...sqUsers, u.id]); 
+                        } else {
+                            // Ta bort från listan om den kryssas ur
+                            setSqUsers(sqUsers.filter(id => id !== u.id)); 
+                        }
+                    }}
+                />
+                <span className="font-bold text-gray-700">{u.name}</span>
+            </label>
+        ))}
+    </div>
+</div>
                 <div>
                      <label className="block text-xs font-bold text-gray-500 mb-1">Uppdrag</label>
                      <input
