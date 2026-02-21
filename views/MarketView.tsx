@@ -367,24 +367,14 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
             >
                 <div className="flex items-center gap-2">
                     <Gift size={20} />
-                    <span>Föreslå ett Side Quest till någon!</span>
+                    <span>Föreslå ett Side Quest till dig själv!</span>
                 </div>
                 {showSqProposalForm ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </button>
             
             {showSqProposalForm && (
                 <form onSubmit={handleSqProposalSubmit} className="p-4 space-y-3">
-                    <select 
-                      className="w-full p-2 rounded-lg border border-gray-200 text-sm"
-                      value={sqPropTarget}
-                      onChange={e => setSqPropTarget(e.target.value)}
-                      required
-                    >
-                        <option value="">-- Vem ska göra utmaningen? --</option>
-                        {familyUsers.map(u => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                    </select>
+                    
                     <input 
                       className="w-full p-2 rounded-lg border border-gray-200 text-sm"
                       placeholder="Vad är utmaningen?"
