@@ -154,8 +154,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
           </div>
       )}
 
-      {/* Reference image preview */}
-      {task.referenceImage && (variant === 'market' || variant === 'my-tasks') && (
+     {/* Reference image preview */}
+      {task.referenceImage && (variant === 'market' || (variant === 'my-tasks' && expanded)) && (
         <div className="mb-3">
           <p className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1">
             <Camera size={12} /> Målbild
@@ -171,9 +171,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
       )}
 
       {variant === 'my-tasks' && task.status === TaskStatus.ASSIGNED && (
-        <div className="space-y-3">
+        <div className="space-y-3 mt-2">
           {/* Completion photo upload area */}
-          {task.referenceImage && (
+          {task.referenceImage && expanded && (
             <div>
               <p className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1">
                 <ImageIcon size={12} /> Ladda upp ditt resultat (valfritt)
