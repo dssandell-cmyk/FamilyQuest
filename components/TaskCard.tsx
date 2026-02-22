@@ -203,18 +203,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
                   )}
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50/50 transition-colors">
-                  <Camera size={20} className="text-gray-400 mb-1" />
-                  <span className="text-xs text-gray-500 font-bold">Ta foto eller välj bild</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleCompletionImage}
-                    className="hidden"
-                  />
-                </label>
+                <label htmlFor={`upload-${task.id}`} className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50/50 transition-colors">
+  <Camera size={20} className="text-gray-400 mb-1" />
+  <span className="text-xs text-gray-500 font-bold">Ta foto eller välj bild</span>
+  <input
+    id={`upload-${task.id}`}
+    ref={fileInputRef}
+    type="file"
+    accept="image/*"
+    onChange={handleCompletionImage}
+    className="hidden"
+  />
+</label>
               )}
             </div>
           )}
