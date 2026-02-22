@@ -306,7 +306,7 @@ export const GameView: React.FC = () => {
                   key={task.id}
                   task={task}
                   variant="my-tasks"
-                  onComplete={() => completeTask(task.id)}
+                  onComplete={(completionImage, imageMatchScore) => completeTask(task.id, completionImage, imageMatchScore)}
                 />
             ))}
             </div>
