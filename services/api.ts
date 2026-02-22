@@ -81,7 +81,6 @@ export const api = {
       bookingDeadline: number;
       completionDeadline: number;
       isBossTask?: boolean;
-      referenceImage?: string | null;
     }) =>
       request<ApiTask>('/api/tasks', {
         method: 'POST',
@@ -89,11 +88,8 @@ export const api = {
       }),
     claim: (id: string) =>
       request<{ success: boolean }>(`/api/tasks/${id}/claim`, { method: 'PUT' }),
-    complete: (id: string, data?: { completionImage?: string; imageMatchScore?: number }) =>
-      request<{ success: boolean }>(`/api/tasks/${id}/complete`, {
-        method: 'PUT',
-        body: JSON.stringify(data || {}),
-      }),
+    complete: (id: string) =>
+      request<{ success: boolean }>(`/api/tasks/${id}/complete`, { method: 'PUT' }),
     verify: (id: string) =>
       request<{ success: boolean }>(`/api/tasks/${id}/verify`, { method: 'PUT' }),
     update: (id: string, data: {
@@ -178,9 +174,6 @@ export interface ApiTask {
   bookingDeadline: number;
   completionDeadline: number;
   isBossTask: boolean;
-  referenceImage?: string | null;
-  completionImage?: string | null;
-  imageMatchScore?: number | null;
 }
 
 export interface ApiProposal {

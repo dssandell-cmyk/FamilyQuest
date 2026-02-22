@@ -64,9 +64,6 @@ export interface Task {
   // Unix timestamp for when the task must be completed
   completionDeadline: number;
   isBossTask?: boolean; // Required to pass a boss level
-  referenceImage?: string | null; // Base64 target image set by admin
-  completionImage?: string | null; // Base64 completion photo uploaded by user
-  imageMatchScore?: number | null; // Similarity score 0-100
 }
 
 export interface TaskProposal {

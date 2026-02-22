@@ -28,7 +28,7 @@ interface GameContextType {
   editTask: (taskId: string, data: { title?: string; description?: string; basePoints?: number; userPointsOverride?: Record<string, number>; bookingDeadline?: number; completionDeadline?: number }) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   claimTask: (taskId: string) => Promise<void>;
-  completeTask: (taskId: string, completionImage?: string, imageMatchScore?: number) => Promise<void>;
+  completeTask: (taskId: string) => Promise<void>;
   verifyTask: (taskId: string) => Promise<void>;
   getPotentialPoints: (task: Task, userId: string) => number;
 
@@ -231,7 +231,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       bookingDeadline: taskData.bookingDeadline,
       completionDeadline: taskData.completionDeadline,
       isBossTask: taskData.isBossTask,
-      referenceImage: taskData.referenceImage,
     });
     await refreshData();
   };
@@ -278,9 +277,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { locked: false };
   };
 
-  const completeTask = async (taskId: string, completionImage?: string, imageMatchScore?: number) => {
-    const data = completionImage ? { completionImage, imageMatchScore } : undefined;
-    await api.tasks.complete(taskId, data);
+  const completeTask = async (taskId: string) => {
+    await api.tasks.complete(taskId);
     const userData = await api.auth.me();
     setCurrentUser(apiUserToUser(userData));
     await refreshData();
