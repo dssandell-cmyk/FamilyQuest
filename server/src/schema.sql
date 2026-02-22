@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   booking_deadline BIGINT,
   completion_deadline BIGINT,
   is_boss_task BOOLEAN DEFAULT false,
+  reference_image TEXT,
+  completion_image TEXT,
+  image_match_score REAL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -56,9 +59,34 @@ CREATE TABLE IF NOT EXISTS side_quests (
   expires_at BIGINT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS side_quest_proposals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+  title VARCHAR(500) NOT NULL,
+  description TEXT DEFAULT '',
+  suggested_for UUID REFERENCES users(id),
+  proposed_by UUID NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add image columns to existing tasks tables
+DO $$ BEGIN
+  ALTER TABLE tasks ADD COLUMN reference_image TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE tasks ADD COLUMN completion_image TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE tasks ADD COLUMN image_match_score REAL;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_users_family ON users(family_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_family ON tasks(family_id);
 CREATE INDEX IF NOT EXISTS idx_proposals_family ON task_proposals(family_id);
 CREATE INDEX IF NOT EXISTS idx_side_quests_family ON side_quests(family_id);
+CREATE INDEX IF NOT EXISTS idx_sq_proposals_family ON side_quest_proposals(family_id);
 CREATE INDEX IF NOT EXISTS idx_families_invite ON families(invite_code);
