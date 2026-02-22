@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Task, TaskStatus } from '../types';
 import { useGame } from '../context/GameContext';
 import { Button } from './Button';
-import { Clock, Trophy, User as UserIcon, AlertCircle, Sparkles, Users, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Trophy, User as UserIcon, AlertCircle, Sparkles, Users, Lock, ChevronDown, ChevronUp, Camera, Image as ImageIcon, CheckCircle2, X } from 'lucide-react';
+import { compressImage, compareImages } from '../utils/imageUtils';
 
 interface TaskCardProps {
   task: Task;
   onClaim?: () => void;
-  onComplete?: () => void;
+  onComplete?: (completionImage?: string, imageMatchScore?: number) => void;
   variant?: 'market' | 'admin' | 'my-tasks';
   isLocked?: boolean;
   lockReason?: string;
@@ -16,6 +17,10 @@ interface TaskCardProps {
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, variant = 'market', isLocked = false, lockReason }) => {
   const { currentUser, getPotentialPoints, users } = useGame();
   const [expanded, setExpanded] = useState(false);
+  const [completionImage, setCompletionImage] = useState<string | null>(null);
+  const [imageMatchScore, setImageMatchScore] = useState<number | null>(null);
+  const [isComparing, setIsComparing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Calculate points for the viewer
   const points = currentUser ? getPotentialPoints(task, currentUser.id) : task.basePoints;
@@ -32,6 +37,31 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
   const isOverdue = Date.now() > task.completionDeadline && task.status === TaskStatus.ASSIGNED;
   
   const assignee = users.find(u => u.id === task.assigneeId);
+
+  const handleCompletionImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file);
+      setCompletionImage(compressed);
+
+      // Compare with reference image if one exists
+      if (task.referenceImage) {
+        setIsComparing(true);
+        const score = await compareImages(task.referenceImage, compressed);
+        setImageMatchScore(score);
+        setIsComparing(false);
+      }
+    } catch (err) {
+      console.error('Image compression failed:', err);
+    }
+  };
+
+  const handleComplete = () => {
+    if (onComplete) {
+      onComplete(completionImage || undefined, imageMatchScore ?? undefined);
+    }
+  };
 
   const formatTimeLeft = (deadline: number) => {
     const diff = deadline - Date.now();
@@ -124,6 +154,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
           </div>
       )}
 
+      {/* Reference image preview */}
+      {task.referenceImage && (variant === 'market' || variant === 'my-tasks') && (
+        <div className="mb-3">
+          <p className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1">
+            <Camera size={12} /> Målbild
+          </p>
+          <img src={task.referenceImage} alt="Målbild" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+        </div>
+      )}
+
       {variant === 'market' && task.status === TaskStatus.OPEN && !isExpired && !isLocked && (
         <Button onClick={onClaim} fullWidth size="sm">
           Boka Uppdrag
@@ -131,9 +171,58 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onClaim, onComplete, v
       )}
 
       {variant === 'my-tasks' && task.status === TaskStatus.ASSIGNED && (
-        <Button onClick={onComplete} variant="success" fullWidth size="sm">
-          Markera som klar
-        </Button>
+        <div className="space-y-3">
+          {/* Completion photo upload area */}
+          {task.referenceImage && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1">
+                <ImageIcon size={12} /> Ladda upp ditt resultat (valfritt)
+              </p>
+              {completionImage ? (
+                <div className="relative">
+                  <img src={completionImage} alt="Resultat" className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+                  <button
+                    type="button"
+                    onClick={() => { setCompletionImage(null); setImageMatchScore(null); }}
+                    className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full hover:bg-black/80"
+                  >
+                    <X size={14} />
+                  </button>
+                  {isComparing && (
+                    <div className="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
+                      <span className="text-sm font-bold text-gray-600 animate-pulse">Jämför bilder...</span>
+                    </div>
+                  )}
+                  {imageMatchScore !== null && !isComparing && (
+                    <div className={`absolute bottom-2 left-2 px-2 py-1 rounded-full text-xs font-bold shadow-sm ${
+                      imageMatchScore >= 70 ? 'bg-green-500 text-white' : imageMatchScore >= 40 ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                      <CheckCircle2 size={12} className="inline mr-1" />
+                      {imageMatchScore}% match
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50/50 transition-colors">
+                  <Camera size={20} className="text-gray-400 mb-1" />
+                  <span className="text-xs text-gray-500 font-bold">Ta foto eller välj bild</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleCompletionImage}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
+          <Button onClick={handleComplete} variant="success" fullWidth size="sm">
+            Markera som klar
+          </Button>
+        </div>
       )}
       
       {variant === 'admin' && task.status === TaskStatus.OPEN && (

@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { TaskStatus, UserRole, TaskProposal, SideQuestStatus } from '../types';
 import { TaskCard } from '../components/TaskCard';
-import { ShoppingBag, Plus, Lightbulb, ChevronUp, ChevronDown, X, Wand2, Coins, Clock, Users, Check, Trash2, Gift, Sparkles } from 'lucide-react';
+import { ShoppingBag, Plus, Lightbulb, ChevronUp, ChevronDown, X, Wand2, Coins, Clock, Users, Check, Trash2, Gift, Sparkles, Camera, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../components/Button';
 import { generateEpicTaskDescription } from '../services/geminiService';
+import { compressImage } from '../utils/imageUtils';
 
 interface MarketViewProps {
   onNavigate: (view: string) => void;
@@ -25,6 +26,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
   const [newDuration, setNewDuration] = useState(24);
   const [userOverrides, setUserOverrides] = useState<Record<string, number>>({});
   const [loadingAi, setLoadingAi] = useState(false);
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
 
   // Proposal State (For Members)
   const [showProposalForm, setShowProposalForm] = useState(false);
@@ -72,6 +74,17 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
     alert('Ditt förslag på Side Quest har skickats till Admin!');
   };
 
+  const handleReferenceImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file);
+      setReferenceImage(compressed);
+    } catch (err) {
+      console.error('Image compression failed:', err);
+    }
+  };
+
   const handleGenerateDesc = async () => {
     if (!newTitle) return;
     setLoadingAi(true);
@@ -116,6 +129,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
             userPointsOverride: userOverrides,
             bookingDeadline: Date.now() + (newDuration * 60 * 60 * 1000),
             completionDeadline: Date.now() + (newDuration * 2 * 60 * 60 * 1000),
+            referenceImage,
         });
     }
 
@@ -133,6 +147,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
     setNewDuration(24);
     setIsConvertingSideQuest(false);
     setSqTargetUser(null);
+    setReferenceImage(null);
     setShowCreateModal(false);
   };
 
@@ -144,6 +159,7 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
     setNewTitle('');
     setNewDesc('');
     setNewBasePoints(10);
+    setReferenceImage(null);
   };
   const handleOverrideChange = (userId: string, value: string) => {
     const numValue = parseInt(value);
@@ -246,6 +262,40 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
                             />
                         </div>
                     </div>
+
+                    {/* Reference Image Upload */}
+                    {!isConvertingSideQuest && (
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <h4 className="flex items-center gap-2 font-bold text-sm text-gray-700 mb-2">
+                            <Camera size={14} className="text-indigo-500" /> Målbild (valfritt)
+                        </h4>
+                        <p className="text-xs text-gray-500 mb-3">Ladda upp en bild som visar hur det ska se ut när uppdraget är klart.</p>
+                        {referenceImage ? (
+                            <div className="relative">
+                                <img src={referenceImage} alt="Målbild" className="w-full h-40 object-cover rounded-lg" />
+                                <button
+                                    type="button"
+                                    onClick={() => setReferenceImage(null)}
+                                    className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full hover:bg-black/80"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors">
+                                <ImageIcon size={24} className="text-gray-400 mb-1" />
+                                <span className="text-xs text-gray-500 font-bold">Klicka eller ta foto</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleReferenceImage}
+                                    className="hidden"
+                                />
+                            </label>
+                        )}
+                    </div>
+                    )}
 
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                          <h4 className="flex items-center gap-2 font-bold text-sm text-gray-700 mb-2">
