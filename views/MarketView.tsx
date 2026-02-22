@@ -282,17 +282,17 @@ export const MarketView: React.FC<MarketViewProps> = ({ onNavigate }) => {
                                 </button>
                             </div>
                         ) : (
-                            <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors">
-                                <ImageIcon size={24} className="text-gray-400 mb-1" />
-                                <span className="text-xs text-gray-500 font-bold">Klicka eller ta foto</span>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    capture="environment"
-                                    onChange={handleReferenceImage}
-                                    className="hidden"
-                                />
-                            </label>
+                            <label htmlFor="create-task-image" className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors">
+    <ImageIcon size={24} className="text-gray-400 mb-1" />
+    <span className="text-xs text-gray-500 font-bold">Klicka eller ta foto</span>
+    <input
+        id="create-task-image"
+        type="file"
+        accept="image/*"
+        onChange={handleReferenceImage}
+        className="hidden"
+    />
+</label>
                         )}
                     </div>
                     )}
