@@ -1,9 +1,9 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { MONSTERS, MAX_GAME_SCORE } from '../constants';
-import { Trophy, ShieldAlert, X, Maximize2, Minimize2, MapPin } from 'lucide-react';
+import { Trophy, ShieldAlert, X, Maximize2, Minimize2, MapPin, Image as ImageIcon } from 'lucide-react';
 import { TaskCard } from '../components/TaskCard';
-import { TaskStatus } from '../types';
+import { TaskStatus, Task } from '../types';
 
 // Logical coordinate system for the SVG
 // Width is 0-100 (percentage-like logic but absolute numbers for SVG)
@@ -36,6 +36,7 @@ export const GameView: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [selectedMonster, setSelectedMonster] = useState<number | null>(null);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
 
   const sortedUsers = [...users].sort((a, b) => b.score - a.score);
   const myTasks = tasks.filter(t => t.assigneeId === currentUser?.id && t.status === TaskStatus.ASSIGNED);
@@ -101,7 +102,42 @@ export const GameView: React.FC = () => {
 
   return (
     <div className="pb-10 bg-gray-50 min-h-full flex flex-col lg:flex-row lg:gap-0">
+      {/* Task Details Modal */}
+      {viewingTask && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setViewingTask(null)}>
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl relative animate-bounce-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <button onClick={() => setViewingTask(null)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
+                    <X size={20} />
+                </button>
+                
+                <h3 className="font-display font-bold text-2xl text-gray-900 mb-3 pr-8">{viewingTask.title}</h3>
+                
+                <div className="bg-indigo-50/50 text-indigo-900 p-4 rounded-2xl mb-5 text-sm border border-indigo-100 leading-relaxed shadow-inner">
+                    {viewingTask.description}
+                </div>
 
+                {viewingTask.referenceImage ? (
+                    <div className="mb-6">
+                        <h4 className="font-bold text-sm text-gray-700 mb-2 flex items-center gap-2">
+                            <ImageIcon size={16} className="text-indigo-500" /> Målbild
+                        </h4>
+                        <div className="rounded-2xl overflow-hidden border-2 border-gray-100 shadow-md">
+                            <img src={viewingTask.referenceImage} alt="Referens" className="w-full h-auto object-cover" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mb-6 p-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400">
+                        <ImageIcon size={32} className="mb-2 opacity-50" />
+                        <p className="text-sm font-bold">Ingen målbild tillagd</p>
+                    </div>
+                )}
+                
+                <button onClick={() => setViewingTask(null)} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg active:scale-95">
+                    Stäng
+                </button>
+            </div>
+        </div>
+      )}
       {/* Monster Popup Modal */}
       {activeMonster && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedMonster(null)}>
@@ -301,13 +337,22 @@ export const GameView: React.FC = () => {
           <div className="mb-8">
             <h3 className="font-display font-bold text-gray-800 text-lg mb-3">Dina uppdrag</h3>
             <div className="space-y-4">
-            {myTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  variant="my-tasks"
-                  onComplete={(completionImage, imageMatchScore) => completeTask(task.id, completionImage, imageMatchScore)}
-                />
+           {myTasks.map(task => (
+                <div key={task.id} className="relative group">
+                    <TaskCard
+                      task={task}
+                      variant="my-tasks"
+                      onComplete={(completionImage, imageMatchScore) => completeTask(task.id, completionImage, imageMatchScore)}
+                    />
+                    {/* Expandera-knappen som öppnar pop-upen */}
+                    <button
+                        onClick={() => setViewingTask(task)}
+                        className="absolute top-3 right-3 bg-white/90 backdrop-blur text-indigo-600 p-2 rounded-full shadow-md border border-indigo-100 hover:bg-indigo-50 hover:scale-105 transition-all z-10"
+                        title="Visa detaljer och bild"
+                    >
+                        <Maximize2 size={16} />
+                    </button>
+                </div>
             ))}
             </div>
           </div>
