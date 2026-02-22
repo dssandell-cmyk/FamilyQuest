@@ -6,7 +6,6 @@ import familyRoutes from './routes/families.js';
 import taskRoutes from './routes/tasks.js';
 import proposalRoutes from './routes/proposals.js';
 import sideQuestRoutes from './routes/sideQuests.js';
-import sqProposalRoutes from './routes/sqProposals.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,7 +16,7 @@ app.use(cors({
   origin: frontendUrl,
   credentials: true,
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -25,7 +24,6 @@ app.use('/api/families', familyRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/side-quests', sideQuestRoutes);
-app.use('/api/sq-proposals', sqProposalRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

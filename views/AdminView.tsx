@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Users, QrCode, Copy, Shield, Trophy, Gift, Send, Clock, Trash2, CheckCircle, Edit3, X, ChevronDown, ListChecks, Camera } from 'lucide-react';
+import { Users, QrCode, Copy, Shield, Trophy, Gift, Send, Clock, Trash2, CheckCircle, Edit3, X, ChevronDown, ListChecks } from 'lucide-react';
 import { UserRole, SideQuestStatus, TaskStatus, Task, User } from '../types';
 import { Button } from '../components/Button';
 
@@ -222,30 +222,6 @@ export const AdminView: React.FC = () => {
                             </div>
                             <span className="bg-green-200 text-green-800 text-xs font-bold px-2 py-0.5 rounded-full ml-2 shrink-0">+{points}p</span>
                           </div>
-                          {/* Image comparison display */}
-                          {(task.referenceImage || task.completionImage) && (
-                            <div className="flex gap-2 mt-2">
-                              {task.referenceImage && (
-                                <div className="flex-1">
-                                  <p className="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><Camera size={10} /> Målbild</p>
-                                  <img src={task.referenceImage} alt="Målbild" className="w-full h-20 object-cover rounded-lg border border-gray-200" />
-                                </div>
-                              )}
-                              {task.completionImage && (
-                                <div className="flex-1">
-                                  <p className="text-[10px] text-gray-400 mb-1 flex items-center gap-1"><Camera size={10} /> Resultat</p>
-                                  <img src={task.completionImage} alt="Resultat" className="w-full h-20 object-cover rounded-lg border border-gray-200" />
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {task.imageMatchScore != null && (
-                            <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              task.imageMatchScore >= 70 ? 'bg-green-100 text-green-700' : task.imageMatchScore >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                            }`}>
-                              <CheckCircle size={10} /> {task.imageMatchScore}% bildmatch
-                            </div>
-                          )}
                           <p className="text-[10px] text-gray-400 mt-2">
                             {daysAgo === 0 ? 'Idag' : daysAgo === 1 ? 'Igår' : `${daysAgo} dagar sedan`}
                           </p>
@@ -441,11 +417,6 @@ export const AdminView: React.FC = () => {
                         {assignee && (
                           <span className="flex items-center gap-1">
                             <Users size={10} /> {assignee.name}
-                          </span>
-                        )}
-                        {task.referenceImage && (
-                          <span className="flex items-center gap-1 text-indigo-500">
-                            <Camera size={10} /> Målbild
                           </span>
                         )}
                       </div>

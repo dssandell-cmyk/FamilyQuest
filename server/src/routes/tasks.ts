@@ -39,9 +39,6 @@ router.get('/', async (req: Request, res: Response) => {
       bookingDeadline: t.booking_deadline ? Number(t.booking_deadline) : 0,
       completionDeadline: t.completion_deadline ? Number(t.completion_deadline) : 0,
       isBossTask: t.is_boss_task || false,
-      referenceImage: t.reference_image || null,
-      completionImage: t.completion_image || null,
-      imageMatchScore: t.image_match_score != null ? Number(t.image_match_score) : null,
     })));
   } catch (err) {
     console.error('Get tasks error:', err);
@@ -51,7 +48,7 @@ router.get('/', async (req: Request, res: Response) => {
 
 // POST /api/tasks - Create task
 router.post('/', async (req: Request, res: Response) => {
-  const { title, description, basePoints, userPointsOverride, bookingDeadline, completionDeadline, isBossTask, referenceImage } = req.body;
+  const { title, description, basePoints, userPointsOverride, bookingDeadline, completionDeadline, isBossTask } = req.body;
 
   if (!title || basePoints == null) {
     res.status(400).json({ error: 'Titel och poäng krävs' });
@@ -66,10 +63,10 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO tasks (family_id, title, description, base_points, user_points_override, created_by, booking_deadline, completion_deadline, is_boss_task, reference_image)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO tasks (family_id, title, description, base_points, user_points_override, created_by, booking_deadline, completion_deadline, is_boss_task)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [familyId, title, description || '', basePoints, JSON.stringify(userPointsOverride || {}), req.userId, bookingDeadline || 0, completionDeadline || 0, isBossTask || false, referenceImage || null]
+      [familyId, title, description || '', basePoints, JSON.stringify(userPointsOverride || {}), req.userId, bookingDeadline || 0, completionDeadline || 0, isBossTask || false]
     );
 
     const t = result.rows[0];
@@ -87,7 +84,6 @@ router.post('/', async (req: Request, res: Response) => {
       bookingDeadline: Number(t.booking_deadline),
       completionDeadline: Number(t.completion_deadline),
       isBossTask: t.is_boss_task,
-      referenceImage: t.reference_image || null,
     });
   } catch (err) {
     console.error('Create task error:', err);
@@ -115,7 +111,6 @@ router.put('/:id/claim', async (req: Request, res: Response) => {
 
 // PUT /api/tasks/:id/complete - Complete task (marks as VERIFIED and awards points)
 router.put('/:id/complete', async (req: Request, res: Response) => {
-  const { completionImage, imageMatchScore } = req.body || {};
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -128,10 +123,7 @@ router.put('/:id/complete', async (req: Request, res: Response) => {
     }
 
     const task = taskResult.rows[0];
-    await client.query(
-      `UPDATE tasks SET status = 'VERIFIED', completion_image = COALESCE($2, completion_image), image_match_score = COALESCE($3, image_match_score) WHERE id = $1`,
-      [req.params.id, completionImage || null, imageMatchScore != null ? imageMatchScore : null]
-    );
+    await client.query(`UPDATE tasks SET status = 'VERIFIED' WHERE id = $1`, [req.params.id]);
 
     if (task.assignee_id) {
       const override = task.user_points_override || {};
