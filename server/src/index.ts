@@ -7,6 +7,7 @@ import taskRoutes from './routes/tasks.js';
 import proposalRoutes from './routes/proposals.js';
 import sideQuestRoutes from './routes/sideQuests.js';
 import sqProposalRoutes from './routes/sqProposals.js';
+import textEditorRoutes from './routes/textEditor.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,6 +28,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/side-quests', sideQuestRoutes);
 app.use('/api/sq-proposals', sqProposalRoutes);
+app.use('/api/text-editor', textEditorRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

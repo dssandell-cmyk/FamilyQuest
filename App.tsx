@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { GameView } from './views/GameView';
 import { MarketView } from './views/MarketView';
 import { AdminView } from './views/AdminView';
+import { TextEditorView } from './views/TextEditorView';
 import { Button } from './components/Button';
 import { SideQuestModal } from './components/SideQuestModal';
 import { UserRole } from './types';
@@ -228,6 +229,7 @@ const MainApp: React.FC = () => {
       <SideQuestModal />
       {activeTab === 'game' && <GameView />}
       {activeTab === 'market' && <MarketView onNavigate={setActiveTab} />}
+      {activeTab === 'editor' && <TextEditorView />}
       {activeTab === 'admin' && currentUser.role === UserRole.ADMIN && <AdminView />}
       {activeTab === 'admin' && currentUser.role !== UserRole.ADMIN && (
           <div className="p-8 text-center text-gray-400">Du har inte behörighet att se detta.</div>

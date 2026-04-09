@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
 import { UserRole } from '../types';
-import { Home, ListChecks, PlusCircle, User as UserIcon, LogOut } from 'lucide-react';
+import { Home, ListChecks, PlusCircle, LogOut, PenLine } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,6 +15,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const navItems = [
     { id: 'game', label: 'Spelplan', icon: Home },
     { id: 'market', label: 'Uppdrag', icon: ListChecks },
+    { id: 'editor', label: 'AI Editor', icon: PenLine },
     ...(currentUser?.role === UserRole.ADMIN
       ? [{ id: 'admin', label: 'Admin', icon: PlusCircle }]
       : []),
